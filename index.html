@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDL Cost Centre Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f4f4f2; --surface:#fcfcfb; --surface-2:#f0efec; --border:#e2e1dc;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#7a7974;
+  --accent:#2a78d6; --accent-ink:#1c5cab;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+  --good:#0a7d0a; --bad:#c03333; --grid:#e8e7e3;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 1px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#33332f;
+    --text:#f0efec; --text-2:#c3c2b7; --muted:#9a998f;
+    --accent:#3987e5; --accent-ink:#86b6ef;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+    --good:#3fbf3f; --bad:#e66767; --grid:#2b2b28;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#33332f;
+  --text:#f0efec; --text-2:#c3c2b7; --muted:#9a998f;
+  --accent:#3987e5; --accent-ink:#86b6ef;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+  --good:#3fbf3f; --bad:#e66767; --grid:#2b2b28;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:inherit}
+.wrap{max-width:1320px;margin:0 auto;padding:0 20px 48px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:20px 0 12px}
+header.top h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
+header.top .sub{color:var(--text-2);font-size:13px}
+.spacer{flex:1}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.badge.live .dot{background:var(--good)} .badge.warn .dot{background:#fab219}
+.btn{border:1px solid var(--border);background:var(--surface);padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:12px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow);position:sticky;top:8px;z-index:20}
+.toolbar label{font-size:12px;color:var(--text-2);font-weight:500}
+select,input[type=text],input[type=password],input[type=search],textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:7px;cursor:pointer;font-weight:500;color:var(--text-2)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs{display:flex;gap:4px;margin:16px 0 12px;border-bottom:1px solid var(--border)}
+.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;font-weight:600;color:var(--text-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.pill{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.pill .sw{width:10px;height:10px;border-radius:3px}
+.pill.on{border-color:var(--text);background:var(--surface-2)}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g32{grid-template-columns:3fr 2fr}
+@media (max-width:980px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2,.g32{grid-template-columns:1fr}}
+@media (max-width:520px){.g4{grid-template-columns:1fr}.wrap{padding:0 16px 40px}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);min-width:0;overflow-x:auto}
+td.code{white-space:nowrap}
+.g1{grid-template-columns:minmax(0,1fr)}
+.card h3{margin:0 0 2px;font-size:14px;font-weight:650}
+.card .hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+.kpi .lab{font-size:12px;color:var(--text-2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi .val.sm{font-size:17px;line-height:1.3;white-space:normal}
+.kpi .cap{font-size:12px;color:var(--muted)}
+.delta{font-weight:600;font-size:12px}
+.delta.up{color:var(--bad)} .delta.down{color:var(--good)}
+.delta.pos{color:var(--good)} .delta.neg{color:var(--bad)}
+.section{margin-top:14px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);font-weight:600;background:var(--surface);position:sticky;top:0}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.sub td{font-weight:650;background:var(--surface-2)}
+tr.tot td{font-weight:700;border-top:2px solid var(--text-2)}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
+.tbl-wrap{overflow:auto;max-height:560px;border-radius:8px}
+.bar-cell{position:relative;min-width:90px}
+.bar-cell .b{height:8px;border-radius:0 4px 4px 0;background:var(--accent);margin-top:6px}
+.takeaways{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.takeaways li{display:grid;grid-template-columns:26px 1fr;gap:8px}
+.takeaways .num{width:22px;height:22px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-weight:700;font-size:12px;color:var(--text-2)}
+.takeaways b{display:block}
+.takeaways span{color:var(--text-2)}
+.note{white-space:pre-wrap;color:var(--text-2);border-left:3px solid var(--accent);padding:4px 0 4px 12px;margin:8px 0}
+.empty{color:var(--muted);font-style:italic}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .ax{fill:var(--muted);font-size:11px}
+.chart .gl{stroke:var(--grid);stroke-width:1}
+.chart .zero{stroke:var(--text-2);stroke-width:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-bottom:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 18px rgba(0,0,0,.15);white-space:nowrap;z-index:5;display:none}
+.tip .t{font-weight:700;margin-bottom:4px}
+.tip .r{display:flex;gap:10px;justify-content:space-between}
+.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow:auto;padding:40px 16px}
+.modal-bg.show{display:flex}
+.modal{background:var(--surface);border-radius:14px;max-width:860px;width:100%;padding:20px 22px;border:1px solid var(--border)}
+.modal h2{margin:0 0 6px;font-size:18px}
+.modal .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.status{font-size:13px;color:var(--text-2);margin:8px 0}
+.status.err{color:var(--bad)} .status.ok{color:var(--good)}
+.acct-toggle{cursor:pointer;user-select:none}
+.acct-toggle .chev{display:inline-block;width:14px;color:var(--muted)}
+.muted{color:var(--muted)}
+.right{text-align:right}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;text-align:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.gate{max-width:560px;margin:80px auto;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>DDL Cost Centre Dashboard</h1>
+      <div class="sub">Digital Door Locks Pty Ltd · Monthly Cost Centre Management Reports · AUD</div>
+    </div>
+    <div class="spacer"></div>
+    <span id="srcBadge" class="badge"><span class="dot"></span><span>Loading…</span></span>
+    <span id="freshBadge" class="badge" hidden></span>
+    <button class="btn sm" id="themeBtn" title="Toggle Light / Dark">Theme</button>
+  </header>
+
+  <div class="toolbar" id="toolbar">
+    <label for="fromSel">From</label><select id="fromSel"></select>
+    <label for="toSel">To</label><select id="toSel"></select>
+    <div class="seg" id="presetSeg">
+      <button data-p="latest">Latest Month</button>
+      <button data-p="q">Last 3 Months</button>
+      <button data-p="fy">FY To Date</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="uploadBtn">Upload Month</button>
+    <button class="btn primary" id="exportBtn" title="Exports the selected To month compared with the month before">Export to Excel</button>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-v="overview" class="on">Overview</button>
+    <button data-v="dept">Department</button>
+    <button data-v="tx">Transactions</button>
+  </nav>
+
+  <main id="main"></main>
+  <div class="foot">Source: Xero Account Transactions by department (Jul–Sep 2026 from the approved reports). Net Spend = debits less credits. Income departments (Sales, CS &amp; Installation) show Net Income less Net Charges.</div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<!-- Upload modal -->
+<div class="modal-bg" id="upModal">
+  <div class="modal" role="dialog" aria-labelledby="upTitle">
+    <h2 id="upTitle">Upload Monthly Xero Data</h2>
+    <div class="muted">Choose the Xero Account Transactions export (.xlsx) for the month — one sheet per department, or one file per department. Approved Cost Centre Analysis workbooks are accepted too. Tick the department-months to load; each one replaces what is already loaded for that department and month, so re-uploading after recoding in Xero is safe.</div>
+    <div class="row">
+      <input type="file" id="upFiles" accept=".xlsx" multiple>
+    </div>
+    <div id="upPreview"></div>
+    <div class="row">
+      <label for="upPass">Admin Passphrase</label>
+      <input type="password" id="upPass" autocomplete="off" style="min-width:220px">
+      <div class="spacer"></div>
+      <button class="btn" id="upCancel">Cancel</button>
+      <button class="btn primary" id="upGo" disabled>Load Into Dashboard</button>
+    </div>
+    <div class="status" id="upStatus"></div>
+  </div>
+</div>
+
+<!-- Commentary modal -->
+<div class="modal-bg" id="cmModal">
+  <div class="modal" role="dialog" aria-labelledby="cmTitle">
+    <h2 id="cmTitle">Approved Commentary</h2>
+    <div class="muted" id="cmSub"></div>
+    <div class="row"><textarea id="cmText" rows="8" style="width:100%" placeholder="Commentary approved by Phil for this department and month…"></textarea></div>
+    <div class="row">
+      <label for="cmPass">Admin Passphrase</label>
+      <input type="password" id="cmPass" autocomplete="off" style="min-width:220px">
+      <div class="spacer"></div>
+      <button class="btn" id="cmCancel">Cancel</button>
+      <button class="btn primary" id="cmSave">Save Commentary</button>
+    </div>
+    <div class="status" id="cmStatus"></div>
+  </div>
+</div>
+
+<script>
+/* ============================== CONFIG ============================== */
+const CFG = {
+  SUPABASE_URL: 'https://aioinnvncriqlxjtquiq.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_zXTOOp6cf2OOjSDRZN5zgg_UaxEpEWR'   // publishable key (read-only; writes go through passphrase-checked functions)
+};
+const COMPANY = 'Digital Door Locks Pty Ltd';
+const DEPTS = ['Finance','Executive','General Management','Marketing','Sales','CS & Installation'];
+const SPEND_DEPTS = ['Finance','Executive','General Management','Marketing'];
+const PL_DEPTS = new Set(['Sales','CS & Installation']);
+const DEPT_VAR = {'Finance':'--s1','Executive':'--s2','General Management':'--s3','Marketing':'--s4','Sales':'--s5','CS & Installation':'--s6'};
+const DEPT_SHORT = {'Finance':'Finance','Executive':'Executive','General Management':'Gen Mgt','Marketing':'Marketing','Sales':'Sales','CS & Installation':'CS and Installation'};
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/* Category maps for income departments (mirror the approved Summary layouts) */
+const CAT = {
+  'Sales': {
+    order:['Philips Locks','Philips Safes','Zigbang Locks','DDL Locks','Samsung Locks','Door Lock Accessories','Retailer Allowances & Rebates','Discounts Given','Payroll','Other Selling Costs','Other Sales Income'],
+    map:{ '42100':'Philips Locks','52100':'Philips Locks','42110':'Philips Safes','52110':'Philips Safes','42650':'Zigbang Locks','52650':'Zigbang Locks',
+          '42500':'DDL Locks','52500':'DDL Locks','41100':'Samsung Locks','51100':'Samsung Locks','41110':'Door Lock Accessories','51110':'Door Lock Accessories','56010':'Discounts Given'},
+    rule(code,inc){ if(this.map[code]) return this.map[code]; if(inc) return 'Other Sales Income';
+      if(/^59/.test(code)) return 'Retailer Allowances & Rebates'; if(/^651/.test(code)) return 'Payroll'; return 'Other Selling Costs'; },
+    incomeTitle:'Sales Income', chargeTitle:'Sales Charges', ratioLabel:'Net Margin'
+  },
+  'CS & Installation': {
+    order:['Service','Out of Warranty','BIS Locks','BIS Safes','In Warranty','Tools & Materials','Project Related','Other Installation Income','Other Installation Charges'],
+    map:{ '47000':'Service','57200':'Service','47001':'Out of Warranty','57201':'Out of Warranty','47003':'BIS Locks','57210':'BIS Locks','47004':'BIS Safes','57211':'BIS Safes',
+          '57202':'In Warranty','51615':'Tools & Materials','51605':'Project Related'},
+    rule(code,inc){ return this.map[code] || (inc?'Other Installation Income':'Other Installation Charges'); },
+    incomeTitle:'Installation Income', chargeTitle:'Installation Charges', ratioLabel:'Income Recovery'
+  }
+};
+
+/* ============================== STATE ============================== */
+let ROWS = [];            // {dept, period:'YYYY-MM', date:'YYYY-MM-DD', code, acct, source, contact, desc, ref, dr, cr}
+let NOTES = new Map();    // short descriptions: dept|acct|contact -> text
+let COMMENTARY = new Map(); // dept|YYYY-MM -> text
+let MONTHS = [];
+const S = { view:'overview', dept:'Finance', from:null, to:null, txDept:'ALL', txSearch:'', txAcct:'', txLimit:150, open:new Set() };
+let sb = null;
+
+/* ============================== HELPERS ============================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+function money(v, dec = 0) {
+  const n = Math.abs(v) < 0.005 ? 0 : v;
+  const s = '$' + Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return n < 0 ? '-' + s : s;
+}
+const m2 = v => money(v, 2);
+const pct = (v, d = 1) => (v == null || !isFinite(v)) ? '–' : (v * 100).toFixed(d) + '%';
+function ymLabel(ym, long) { const [y, m] = ym.split('-').map(Number); return (long ? MONL : MON)[m - 1] + ' ' + (long ? y : String(y).slice(2)); }
+function addM(ym, n) { let [y, m] = ym.split('-').map(Number); m += n; while (m > 12) { m -= 12; y++; } while (m < 1) { m += 12; y--; } return y + '-' + String(m).padStart(2, '0'); }
+function monthsBetween(a, b) { const out = []; let c = a; while (c <= b) { out.push(c); c = addM(c, 1); } return out; }
+function lastDay(ym) { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); }
+function periodLabel(from = S.from, to = S.to, long) {
+  if (from === to) return ymLabel(from, true);
+  const [fy] = from.split('-'), [ty] = to.split('-');
+  return fy === ty ? `${MON[+from.slice(5) - 1]}–${MON[+to.slice(5) - 1]} ${ty}` : `${ymLabel(from)} – ${ymLabel(to)}`;
+}
+function periodLong(from = S.from, to = S.to) {
+  return `1 ${MONL[+from.slice(5) - 1]} ${from.slice(0, 4)} – ${lastDay(to)} ${MONL[+to.slice(5) - 1]} ${to.slice(0, 4)}`;
+}
+function fyLabel(ym) { const [y, m] = ym.split('-').map(Number); const fy = m >= 7 ? y + 1 : y; return 'FY' + String(fy).slice(2); }
+function quarterTitle(from, to) {
+  const n = monthsBetween(from, to).length;
+  const [y, m] = from.split('-').map(Number);
+  if (n === 3 && [7, 10, 1, 4].includes(m)) { const q = { 7: 1, 10: 2, 1: 3, 4: 4 }[m]; return `Q${q} ${fyLabel(from)}`; }
+  return periodLabel(from, to);
+}
+function prevRange(from = S.from, to = S.to) { const n = monthsBetween(from, to).length; return [addM(from, -n), addM(to, -n)]; }
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const isIncome = (dept, code) => PL_DEPTS.has(dept) && String(code).startsWith('4');
+function rowsFor(dept, from = S.from, to = S.to) { return ROWS.filter(r => (dept === 'ALL' || r.dept === dept) && r.period >= from && r.period <= to); }
+function hasData(dept, from, to) { return ROWS.some(r => r.dept === dept && r.period >= from && r.period <= to); }
+const netOf = rows => r2(sum(rows, r => r.dr - r.cr));
+function plOf(dept, rows) {
+  let inc = 0, chg = 0, incDr = 0, incCr = 0, chDr = 0, chCr = 0;
+  for (const r of rows) { if (isIncome(dept, r.code)) { incDr += r.dr; incCr += r.cr; } else { chDr += r.dr; chCr += r.cr; } }
+  inc = incCr - incDr; chg = chDr - chCr;
+  return { income: r2(inc), charges: r2(chg), result: r2(inc - chg), incDr, incCr, chDr, chCr };
+}
+/* headline = net spend for spend depts, net result for income depts */
+function headline(dept, rows) { return PL_DEPTS.has(dept) ? plOf(dept, rows).result : netOf(rows); }
+function groupBy(rows, keyFn) { const m = new Map(); for (const r of rows) { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; }
+function normAcct(a) { return String(a || '').replace(/\s*\[\d+\]\s*$/, '').toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim(); }
+function shortDesc(dept, acct, contact) {
+  return NOTES.get(dept + '|' + normAcct(acct) + '|' + (contact || '').trim().toLowerCase()) || NOTES.get(dept + '|*|' + (contact || '').trim().toLowerCase()) || '';
+}
+function setNotes(list) {
+  NOTES = new Map(); const byContact = new Map();
+  for (const n of list) {
+    const c = (n.contact || '').trim().toLowerCase();
+    NOTES.set(n.dept + '|' + normAcct(n.acct) + '|' + c, n.short);
+    const k = n.dept + '|*|' + c; if (!byContact.has(k)) byContact.set(k, n.short);
+  }
+  for (const [k, v] of byContact) if (!NOTES.has(k)) NOTES.set(k, v);
+}
+function deltaHtml(cur, prev, { goodWhenDown = true, label = 'vs prior period' } = {}) {
+  if (prev == null || Math.abs(prev) < 0.005) return `<span class="cap">No prior-period data</span>`;
+  const ch = (cur - prev) / Math.abs(prev); const up = ch > 0;
+  const cls = goodWhenDown ? (up ? 'up' : 'down') : (up ? 'pos' : 'neg');
+  return `<span class="delta ${cls}">${up ? '▲' : '▼'} ${pct(Math.abs(ch))}</span> <span class="cap">${label} (${money(prev)})</span>`;
+}
+
+/* ============================== DATA LOAD ============================== */
+async function fetchAll(table, select, order) {
+  const out = []; const size = 1000;
+  for (let from = 0; ; from += size) {
+    let q = sb.from(table).select(select).range(from, from + size - 1);
+    if (order) q = q.order(order, { ascending: true });
+    const { data, error } = await q; if (error) throw error;
+    out.push(...data); if (data.length < size) break;
+  }
+  return out;
+}
+async function loadLive() {
+  if (!CFG.SUPABASE_URL || !CFG.SUPABASE_KEY) { setBadge('warn', 'Not Connected'); renderGate('This dashboard is not connected to its database yet.'); return; }
+  sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
+  try {
+    setBadge('', 'Loading…');
+    const [tx, notes, cm] = await Promise.all([
+      fetchAll('cc_transactions', 'dept,period,txn_date,account_code,account_name,source,contact,description,reference,debit,credit', 'id'),
+      fetchAll('cc_contact_notes', 'dept,account_name,contact,short_desc'),
+      fetchAll('cc_commentary', 'dept,period,note')
+    ]);
+    ingest(tx.map(t => ({ dept: t.dept, period: t.period.slice(0, 7), date: t.txn_date, code: t.account_code, acct: t.account_name, source: t.source || '', contact: t.contact || '', desc: t.description || '', ref: t.reference || '', dr: +t.debit || 0, cr: +t.credit || 0 })),
+      notes.map(n => ({ dept: n.dept, acct: n.account_name, contact: n.contact, short: n.short_desc })),
+      cm.map(c => ({ dept: c.dept, period: c.period.slice(0, 7), note: c.note })));
+    setBadge('live', 'Live Data (Supabase)');
+  } catch (e) { console.error(e); setBadge('warn', 'Connection Error'); renderGate('Could not load data: ' + esc(e.message || e)); }
+}
+function ingest(rows, notes, commentary, keepPeriod) {
+  ROWS = rows; setNotes(notes || []);
+  COMMENTARY = new Map((commentary || []).map(c => [c.dept + '|' + c.period, c.note]));
+  MONTHS = [...new Set(ROWS.map(r => r.period))].sort();
+  if (!MONTHS.length) { renderGate('No months loaded yet. Use “Upload Month” to add the first approved reports.'); fillMonthSelects(); updateFresh(); return; }
+  if (!keepPeriod || !S.to || !MONTHS.includes(S.to)) { S.to = MONTHS[MONTHS.length - 1]; S.from = S.to; }
+  if (!MONTHS.includes(S.from) || S.from > S.to) S.from = S.to;
+  fillMonthSelects(); updateFresh(); render();
+}
+window.__loadDemo = (rows, notes, commentary) => { setBadge('live', 'Demo Data'); ingest(rows, notes, commentary); };
+function setBadge(cls, text) { const b = $('#srcBadge'); b.className = 'badge ' + cls; b.lastElementChild.textContent = text; }
+function updateFresh() {
+  const b = $('#freshBadge'); if (!MONTHS.length) { b.hidden = true; return; }
+  const latest = MONTHS[MONTHS.length - 1];
+  const now = new Date(); const cur = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const behind = monthsBetween(latest, cur).length - 3; // allow one month for month-end close and approval
+  b.hidden = false; b.className = 'badge ' + (behind <= 0 ? 'live' : behind === 1 ? 'warn' : '');
+  b.innerHTML = `<span class="dot" style="${behind > 1 ? 'background:var(--bad)' : ''}"></span>Latest Month: ${ymLabel(latest, true)}${behind > 0 ? ` · ${behind} Month${behind > 1 ? 's' : ''} Behind` : ''}`;
+}
+function fillMonthSelects() {
+  const opts = MONTHS.slice().reverse().map(m => `<option value="${m}">${ymLabel(m, true)}</option>`).join('');
+  $('#fromSel').innerHTML = opts; $('#toSel').innerHTML = opts;
+  if (S.from) { $('#fromSel').value = S.from; $('#toSel').value = S.to; }
+  markPreset();
+}
+function markPreset() {
+  const latest = MONTHS[MONTHS.length - 1];
+  document.querySelectorAll('#presetSeg button').forEach(b => {
+    const [f, t] = presetRange(b.dataset.p); b.classList.toggle('on', !!latest && f === S.from && t === S.to);
+  });
+}
+function presetRange(p) {
+  const t = MONTHS[MONTHS.length - 1]; if (!t) return [null, null];
+  if (p === 'latest') return [t, t];
+  if (p === 'q') { const f = addM(t, -2); return [MONTHS.find(m => m >= f) || t, t]; }
+  const [y, m] = t.split('-').map(Number); const fyStart = (m >= 7 ? y : y - 1) + '-07';
+  return [MONTHS.find(x => x >= fyStart) || t, t];
+}
+function renderGate(msg) { $('#main').innerHTML = `<div class="card gate"><h3>Cost Centre Dashboard</h3><p class="muted">${msg}</p></div>`; }
+
+/* ============================== CHARTS ============================== */
+function niceTicks(min, max, n = 5) {
+  if (min === max) { max = min + 1; }
+  const span = max - min; const step0 = span / n; const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(x => x * mag).find(x => x >= step0);
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step; const t = [];
+  for (let v = lo; v <= hi + step / 2; v += step) t.push(Math.round(v * 100) / 100);
+  return t;
+}
+function shortMoney(v) { const a = Math.abs(v); const s = a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M' : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : a.toFixed(0); return (v < 0 ? '-$' : '$') + s; }
+/* Grouped bar chart. opts: labels[], series:[{name,color,values[]}], highlight:Set(idx), height */
+function barChart(el, opts) {
+  const { labels, series, highlight, height = 240 } = opts;
+  const W = Math.max(320, el.clientWidth || 600), H = height, padL = 54, padR = 8, padT = 10, padB = 26;
+  const all = series.flatMap(s => s.values); const ticks = niceTicks(Math.min(0, ...all), Math.max(0, ...all));
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const Y = v => padT + (H - padT - padB) * (1 - (v - y0) / (y1 - y0 || 1));
+  const n = labels.length, band = (W - padL - padR) / Math.max(1, n), gap = 2;
+  const bw = Math.max(3, Math.min(34, (band * 0.72 - gap * (series.length - 1)) / series.length));
+  const groupW = bw * series.length + gap * (series.length - 1);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opts.title || 'Bar chart')}">`;
+  for (const t of ticks) svg += `<line class="${t === 0 ? 'zero' : 'gl'}" x1="${padL}" x2="${W - padR}" y1="${Y(t)}" y2="${Y(t)}"/><text class="ax" x="${padL - 6}" y="${Y(t) + 4}" text-anchor="end">${shortMoney(t)}</text>`;
+  const step = Math.ceil(n / Math.floor((W - padL) / 52));
+  labels.forEach((l, i) => {
+    const gx = padL + band * i + (band - groupW) / 2;
+    const dim = highlight && !highlight.has(i);
+    series.forEach((s, j) => {
+      const v = s.values[i] || 0, x = gx + j * (bw + gap), ya = Y(Math.max(0, v)), yb = Y(Math.min(0, v)), h = Math.max(0, yb - ya);
+      if (h <= 0) return;
+      const r = Math.min(4, bw / 2, h);
+      const d = v >= 0
+        ? `M${x},${yb}V${ya + r}Q${x},${ya} ${x + r},${ya}H${x + bw - r}Q${x + bw},${ya} ${x + bw},${ya + r}V${yb}Z`
+        : `M${x},${ya}V${yb - r}Q${x},${yb} ${x + r},${yb}H${x + bw - r}Q${x + bw},${yb} ${x + bw},${yb - r}V${ya}Z`;
+      svg += `<path d="${d}" fill="${s.color}" opacity="${dim ? 0.32 : 1}"/>`;
+    });
+    if (i % step === 0) svg += `<text class="ax" x="${padL + band * i + band / 2}" y="${H - 8}" text-anchor="middle"${highlight && highlight.has(i) ? ' style="fill:var(--text);font-weight:600"' : ''}>${esc(l)}</text>`;
+    svg += `<rect data-i="${i}" x="${padL + band * i}" y="${padT}" width="${band}" height="${H - padT - padB}" fill="transparent"/>`;
+  });
+  svg += '</svg>';
+  const legend = series.length > 1 ? `<div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>` : '';
+  el.innerHTML = legend + `<div class="chart">${svg}</div>`;
+  const tip = $('#tip');
+  el.querySelectorAll('rect[data-i]').forEach(rc => {
+    rc.addEventListener('mousemove', ev => {
+      const i = +rc.dataset.i;
+      tip.innerHTML = `<div class="t">${esc(opts.tipLabels ? opts.tipLabels[i] : labels[i])}</div>` + series.map(s => `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.name)}</span><b>${m2(s.values[i] || 0)}</b></div>`).join('') + (opts.extraTip ? opts.extraTip(i) : '');
+      tip.style.display = 'block';
+      const tw = tip.offsetWidth; let x = ev.pageX + 14; if (x + tw > window.scrollX + innerWidth - 8) x = ev.pageX - tw - 14;
+      tip.style.left = x + 'px'; tip.style.top = (ev.pageY - 10) + 'px';
+      rc.setAttribute('fill', 'rgba(127,127,127,.08)');
+    });
+    rc.addEventListener('mouseleave', () => { tip.style.display = 'none'; rc.setAttribute('fill', 'transparent'); });
+  });
+  if (opts.onClick) el.querySelectorAll('rect[data-i]').forEach(rc => { rc.style.cursor = 'pointer'; rc.addEventListener('click', () => opts.onClick(+rc.dataset.i)); });
+}
+/* trailing window of up to 12 months ending at S.to */
+function trailing() { const start = addM(S.to, -11); return MONTHS.filter(m => m >= start && m <= S.to); }
+
+/* ============================== ANALYSIS ============================== */
+function spendAnalysis(dept, from = S.from, to = S.to) {
+  const rows = rowsFor(dept, from, to);
+  const months = monthsBetween(from, to);
+  const net = netOf(rows);
+  const accts = [...groupBy(rows, r => r.code + '|' + r.acct)].map(([k, rs]) => ({ code: k.split('|')[0], acct: rs[0].acct, net: netOf(rs), dr: sum(rs, r => r.dr), cr: sum(rs, r => r.cr), n: rs.length }))
+    .sort((a, b) => b.net - a.net);
+  const contacts = [...groupBy(rows, r => r.contact || 'No Contact')].map(([c, rs]) => ({ contact: c, net: netOf(rs) })).sort((a, b) => b.net - a.net);
+  const monthly = months.map(m => { const rs = rows.filter(r => r.period === m); return { m, dr: r2(sum(rs, r => r.dr)), cr: r2(sum(rs, r => r.cr)), net: netOf(rs), n: rs.length }; });
+  const [pf, pt] = prevRange(from, to);
+  const prevRows = rowsFor(dept, pf, pt); const prev = prevRows.length ? netOf(prevRows) : null;
+  const prevAccts = new Map([...groupBy(prevRows, r => r.code)].map(([c, rs]) => [c, netOf(rs)]));
+  return { dept, rows, months, net, accts, contacts, monthly, prev, prevAccts, pf, pt, from, to };
+}
+function plAnalysis(dept, from = S.from, to = S.to) {
+  const rows = rowsFor(dept, from, to); const cat = CAT[dept];
+  const months = monthsBetween(from, to);
+  const pl = plOf(dept, rows);
+  const codes = [...groupBy(rows, r => r.code)].map(([code, rs]) => {
+    const inc = isIncome(dept, code), dr = sum(rs, r => r.dr), cr = sum(rs, r => r.cr);
+    return { code, acct: rs[0].acct, inc, n: rs.length, dr: r2(dr), cr: r2(cr), net: r2(inc ? cr - dr : dr - cr), cat: cat.rule(code, inc) };
+  });
+  const income = codes.filter(c => c.inc).sort((a, b) => a.code.localeCompare(b.code));
+  const charges = codes.filter(c => !c.inc).sort((a, b) => a.code.localeCompare(b.code));
+  const cats = cat.order.map(name => {
+    const ni = r2(sum(income.filter(c => c.cat === name), c => c.net)), nc = r2(sum(charges.filter(c => c.cat === name), c => c.net));
+    return { name, income: ni, charge: nc, result: r2(ni - nc), margin: ni ? (ni - nc) / ni : null };
+  }).filter(c => c.income || c.charge);
+  const monthly = months.map(m => ({ m, ...plOf(dept, rows.filter(r => r.period === m)) }));
+  const [pf, pt] = prevRange(from, to); const prevRows = rowsFor(dept, pf, pt);
+  const prev = prevRows.length ? plOf(dept, prevRows) : null;
+  const ratio = dept === 'Sales' ? (pl.income ? pl.result / pl.income : null) : (pl.charges ? pl.income / pl.charges : null);
+  return { dept, rows, months, pl, income, charges, cats, monthly, prev, pf, pt, ratio, from, to };
+}
+function spendTakeaways(a) {
+  const out = [];
+  if (!a.rows.length) return out;
+  const top = a.accts[0];
+  if (top) out.push([`${top.acct} Is the Largest Account`, `${m2(top.net)} — ${pct(top.net / a.net)} of net spend for ${periodLabel(a.from, a.to)} (${top.n} transaction${top.n > 1 ? 's' : ''}).`]);
+  if (a.monthly.length > 1) {
+    const f = a.monthly[0], l = a.monthly[a.monthly.length - 1];
+    out.push([`Net Spend ${l.net >= f.net ? 'Rose' : 'Fell'} Across the Period`, `${a.monthly.map(x => `${ymLabel(x.m)} ${money(x.net)}`).join(' · ')} — ${l.net >= f.net ? 'up' : 'down'} ${pct(Math.abs(f.net ? (l.net - f.net) / f.net : 0))} from first to last month.`]);
+  } else if (a.prev != null) {
+    const moves = a.accts.map(x => ({ ...x, d: x.net - (a.prevAccts.get(x.code) || 0) }));
+    for (const [c, v] of a.prevAccts) if (!a.accts.some(x => x.code === c)) moves.push({ acct: (rowsFor(a.dept, a.pf, a.pt).find(r => r.code === c) || {}).acct || c, d: -v });
+    moves.sort((x, y) => Math.abs(y.d) - Math.abs(x.d)); const mv = moves[0];
+    const ch = a.net - a.prev;
+    out.push([`Net Spend ${ch >= 0 ? 'Up' : 'Down'} ${pct(Math.abs(a.prev ? ch / a.prev : 0))} on ${periodLabel(a.pf, a.pt)}`, `${money(a.net)} vs ${money(a.prev)} (${ch >= 0 ? '+' : ''}${money(ch)}).` + (mv ? ` Biggest mover: ${mv.acct} (${mv.d >= 0 ? '+' : ''}${money(mv.d)}).` : '')]);
+  }
+  const c = a.contacts[0];
+  if (c) {
+    const top3 = a.contacts.slice(0, 3); const s3 = sum(top3, x => x.net);
+    out.push([`${c.contact} Is the Largest Contact`, `${m2(c.net)} (${pct(c.net / a.net)}). The top three contacts — ${top3.map(x => x.contact).join(', ')} — make up ${pct(s3 / a.net)} of net spend.`]);
+  }
+  const pay = sum(a.accts.filter(x => /^651/.test(x.code)), x => x.net);
+  if (pay > 0 && out.length < 4) out.push(['Payroll Share', `Wages, superannuation and related payroll costs total ${m2(pay)}, or ${pct(pay / a.net)} of net spend.`]);
+  return out.slice(0, 3);
+}
+function plTakeaways(a) {
+  const out = []; if (!a.rows.length) return out; const cat = CAT[a.dept];
+  out.push([`Net Result of ${money(a.pl.result)}`, `Net income ${money(a.pl.income)} less net charges ${money(a.pl.charges)} — ${cat.ratioLabel.toLowerCase()} ${pct(a.ratio)}.`]);
+  const prods = a.cats.filter(c => c.income > 0.01 * a.pl.income).sort((x, y) => y.result - x.result);
+  if (prods.length) {
+    const best = prods[0], worst = prods[prods.length - 1];
+    out.push([`${best.name} Is the Strongest Contributor`, `${money(best.result)} net result at ${pct(best.margin)} margin` + (worst !== best ? `; ${worst.name} is weakest at ${money(worst.result)} (${pct(worst.margin)}).` : '.')]);
+  }
+  const unpaired = a.cats.filter(c => !c.income && c.charge).sort((x, y) => y.charge - x.charge);
+  if (unpaired.length) out.push([`Unmatched Charges Total ${money(sum(unpaired, c => c.charge))}`, unpaired.slice(0, 4).map(c => `${c.name} ${money(c.charge)}`).join(' · ') + ' — charges with no matching income line.']);
+  else if (a.prev) out.push(['Change vs Prior Period', `Net result ${money(a.pl.result)} vs ${money(a.prev.result)} in ${periodLabel(a.pf, a.pt)}.`]);
+  return out.slice(0, 3);
+}
+
+/* ============================== RENDER ============================== */
+function render() {
+  if (!MONTHS.length) return;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
+  markPreset();
+  if (S.view === 'overview') renderOverview(); else if (S.view === 'dept') renderDept(); else renderTx();
+}
+function kpi(lab, val, cap, sm) { return `<div class="card kpi"><div class="lab">${lab}</div><div class="val${sm ? ' sm' : ''}">${val}</div><div class="cap">${cap}</div></div>`; }
+
+function renderOverview() {
+  const months = trailing(); const sel = new Set(months.map((m, i) => (m >= S.from && m <= S.to) ? i : -1).filter(i => i >= 0));
+  const [pf, pt] = prevRange();
+  const spendNow = sum(SPEND_DEPTS, d => netOf(rowsFor(d))), spendPrev = SPEND_DEPTS.some(d => hasData(d, pf, pt)) ? sum(SPEND_DEPTS, d => netOf(rowsFor(d, pf, pt))) : null;
+  const sales = plOf('Sales', rowsFor('Sales')), salesP = hasData('Sales', pf, pt) ? plOf('Sales', rowsFor('Sales', pf, pt)).result : null;
+  const cs = plOf('CS & Installation', rowsFor('CS & Installation')), csP = hasData('CS & Installation', pf, pt) ? plOf('CS & Installation', rowsFor('CS & Installation', pf, pt)).result : null;
+  const nTx = rowsFor('ALL').length;
+  let h = `<div class="grid g4">
+    ${kpi('Operating Spend', money(spendNow), deltaHtml(spendNow, spendPrev) + '<br><span class="cap">Finance, Executive, Gen Mgt, Marketing</span>')}
+    ${kpi('Sales Net Result', money(sales.result), deltaHtml(sales.result, salesP, { goodWhenDown: false }) + `<br><span class="cap">Margin ${pct(sales.income ? sales.result / sales.income : null)}</span>`)}
+    ${kpi('CS & Installation Net Result', money(cs.result), deltaHtml(cs.result, csP, { goodWhenDown: false }) + `<br><span class="cap">Income Recovery ${pct(cs.charges ? cs.income / cs.charges : null)}</span>`)}
+    ${kpi('Transactions', nTx.toLocaleString('en-AU'), `${periodLabel()} · ${DEPTS.filter(d => hasData(d, S.from, S.to)).length} of 6 departments loaded`)}
+  </div>
+  <div class="grid g32 section">
+    <div class="card"><h3>Monthly Net Spend by Department</h3><p class="hint">Spend departments, last ${months.length} month${months.length > 1 ? 's' : ''} · selected period highlighted · click a month to select it</p><div id="ovChart"></div></div>
+    <div class="card"><h3>Income Departments</h3><p class="hint">${periodLabel()} · net income less net charges</p>
+      <table><thead><tr><th>Department</th><th class="n">Net Income</th><th class="n">Net Charges</th><th class="n">Net Result</th></tr></thead><tbody>
+      ${['Sales', 'CS & Installation'].map(d => { const p = plOf(d, rowsFor(d)); return `<tr class="click" data-d="${d}"><td>${d}</td><td class="n">${money(p.income)}</td><td class="n">${money(p.charges)}</td><td class="n" style="color:${p.result < 0 ? 'var(--bad)' : 'inherit'}">${money(p.result)}</td></tr>`; }).join('')}
+      </tbody></table>
+      <div style="margin-top:14px" id="ovPl"></div>
+    </div>
+  </div>
+  <div class="card section"><h3>Department Summary</h3><p class="hint">${periodLabel()} vs ${periodLabel(pf, pt)} · Net Spend for spend departments, Net Result for income departments · click a row to open</p>
+  <div class="tbl-wrap"><table><thead><tr><th>Department</th><th>Measure</th><th class="n">${esc(periodLabel())}</th><th class="n">${esc(periodLabel(pf, pt))}</th><th class="n">Change</th><th class="n">Change %</th><th class="n">Transactions</th><th>Largest Account</th></tr></thead><tbody>`;
+  for (const d of DEPTS) {
+    const rs = rowsFor(d), prs = rowsFor(d, pf, pt); const pl = PL_DEPTS.has(d);
+    const cur = headline(d, rs), prev = prs.length ? headline(d, prs) : null;
+    let largest = '–';
+    if (rs.length) { const g = [...groupBy(rs.filter(r => !isIncome(d, r.code)), r => r.acct)].map(([a, x]) => [a, netOf(x)]).sort((a, b) => b[1] - a[1])[0]; if (g) largest = `${esc(g[0])} <span class="muted">${money(g[1])}</span>`; }
+    const ch = prev == null ? null : cur - prev; const good = ch == null ? '' : (pl ? (ch >= 0 ? 'pos' : 'neg') : (ch > 0 ? 'up' : 'down'));
+    h += `<tr class="click" data-d="${d}"><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:var(${DEPT_VAR[d]})"></span>${d}</td><td class="muted">${pl ? 'Net Result' : 'Net Spend'}</td>
+      <td class="n">${rs.length ? m2(cur) : '<span class="muted">Not loaded</span>'}</td><td class="n">${prev == null ? '–' : m2(prev)}</td>
+      <td class="n"><span class="delta ${good}">${ch == null ? '–' : (ch >= 0 ? '+' : '') + m2(ch)}</span></td><td class="n">${ch == null || !prev ? '–' : pct(ch / Math.abs(prev))}</td><td class="n">${rs.length}</td><td>${largest}</td></tr>`;
+  }
+  h += `</tbody></table></div></div>`;
+  $('#main').innerHTML = h;
+  barChart($('#ovChart'), {
+    title: 'Monthly net spend by department', labels: months.map(m => ymLabel(m)), tipLabels: months.map(m => ymLabel(m, true)), highlight: sel,
+    series: SPEND_DEPTS.map(d => ({ name: d, color: cssVar(DEPT_VAR[d]), values: months.map(m => netOf(ROWS.filter(r => r.dept === d && r.period === m))) })),
+    extraTip: i => `<div class="r" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span>Total</span><b>${m2(sum(SPEND_DEPTS, d => netOf(ROWS.filter(r => r.dept === d && r.period === months[i]))))}</b></div>`,
+    onClick: i => { S.from = S.to = months[i]; syncSel(); render(); }
+  });
+  barChart($('#ovPl'), {
+    title: 'Monthly net result, income departments', labels: months.map(m => ymLabel(m)), tipLabels: months.map(m => ymLabel(m, true)), highlight: sel, height: 170,
+    series: ['Sales', 'CS & Installation'].map(d => ({ name: d + ' Net Result', color: cssVar(DEPT_VAR[d]), values: months.map(m => plOf(d, ROWS.filter(r => r.dept === d && r.period === m)).result) }))
+  });
+  document.querySelectorAll('tr[data-d]').forEach(tr => tr.addEventListener('click', () => { S.dept = tr.dataset.d; S.view = 'dept'; render(); scrollTo(0, 0); }));
+}
+
+function deptPills() {
+  return `<div class="pills">${DEPTS.map(d => `<button class="pill${d === S.dept ? ' on' : ''}" data-d="${d}"><span class="sw" style="background:var(${DEPT_VAR[d]})"></span>${d}</button>`).join('')}</div>`;
+}
+function bindPills() { document.querySelectorAll('.pill[data-d]').forEach(b => b.addEventListener('click', () => { S.dept = b.dataset.d; S.open.clear(); render(); })); }
+function commentaryCard(dept) {
+  const ms = monthsBetween(S.from, S.to).slice().reverse();
+  const items = ms.map(m => [m, COMMENTARY.get(dept + '|' + m)]).filter(x => x[1]);
+  return `<div class="card"><div style="display:flex;align-items:center;gap:8px"><h3>Approved Commentary</h3><div class="spacer"></div><button class="btn sm" id="cmEdit">Edit ${esc(ymLabel(S.to, true))}</button></div>
+    ${items.length ? items.map(([m, t]) => `<div class="muted" style="font-size:12px;margin-top:8px;font-weight:600">${ymLabel(m, true)}</div><div class="note">${esc(t)}</div>`).join('') : `<p class="empty">No approved commentary saved for ${esc(periodLabel())} yet.</p>`}</div>`;
+}
+function takeawayCard(list) {
+  return `<div class="card"><h3>Key Takeaways</h3><p class="hint">Calculated from the loaded figures for ${esc(periodLabel())}</p>
+    ${list.length ? `<ol class="takeaways">${list.map((t, i) => `<li><span class="num">${i + 1}</span><div><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div></li>`).join('')}</ol>` : '<p class="empty">No data for this period.</p>'}</div>`;
+}
+function renderDept() {
+  const d = S.dept;
+  if (!hasData(d, S.from, S.to)) { $('#main').innerHTML = deptPills() + `<div class="card"><p class="empty">No approved ${esc(d)} report has been loaded for ${esc(periodLabel())}.</p></div>`; bindPills(); return; }
+  if (PL_DEPTS.has(d)) return renderPl(d);
+  const a = spendAnalysis(d); const months = trailing(); const sel = new Set(months.map((m, i) => (m >= S.from && m <= S.to) ? i : -1).filter(i => i >= 0));
+  const top = a.accts[0];
+  let h = deptPills() + `<div class="grid g4">
+    ${kpi('Net Spend', money(a.net), deltaHtml(a.net, a.prev, { label: 'vs ' + periodLabel(a.pf, a.pt) }))}
+    ${kpi('Transactions', a.rows.length.toLocaleString('en-AU'), 'Ledger entries in ' + esc(periodLabel()))}
+    ${kpi('Largest Account', top ? money(top.net) : '–', top ? esc(top.acct) + ' · ' + pct(top.net / a.net) : '')}
+    ${kpi(a.monthly.length > 1 ? 'First → Last Month' : 'Change vs Prior Month', a.monthly.length > 1 ? pct((a.monthly.at(-1).net / (a.monthly[0].net || 1)) - 1) : (a.prev ? pct(a.net / a.prev - 1) : '–'),
+      a.monthly.length > 1 ? `${ymLabel(a.monthly[0].m)} ${money(a.monthly[0].net)} → ${ymLabel(a.monthly.at(-1).m)} ${money(a.monthly.at(-1).net)}` : (a.prev ? `${money(a.net - a.prev)} difference` : 'No prior month loaded'))}
+  </div>
+  <div class="grid g2 section">${takeawayCard(spendTakeaways(a))}${commentaryCard(d)}</div>
+  <div class="grid g2 section">
+    <div class="card"><h3>Monthly Net Spend</h3><p class="hint">Last ${months.length} month${months.length > 1 ? 's' : ''} · selected period highlighted · click a month to select it</p><div id="dChart"></div></div>
+    <div class="card"><h3>Account Mix</h3><p class="hint">Net spend by account · ${esc(periodLabel())}</p><div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>Account</th><th>Code</th><th class="n">Net Spend</th><th class="n">Share</th><th></th></tr></thead><tbody>
+      ${a.accts.map(x => `<tr><td>${esc(x.acct)}</td><td class="muted code">${esc(x.code)}</td><td class="n">${m2(x.net)}</td><td class="n">${pct(x.net / a.net)}</td><td class="bar-cell"><div class="b" style="width:${Math.max(0, x.net / Math.max(...a.accts.map(z => z.net), 1) * 100)}%"></div></td></tr>`).join('')}
+      <tr class="tot"><td>Total</td><td></td><td class="n">${m2(a.net)}</td><td class="n">100.0%</td><td></td></tr></tbody></table></div></div>
+  </div>
+  <div class="grid g2 section">
+    <div class="card"><h3>Monthly Movement</h3><p class="hint">Gross debits, credits and net spend by month</p>
+      <table><thead><tr><th>Month</th><th class="n">Gross Debit</th><th class="n">Credit</th><th class="n">Net Spend</th></tr></thead><tbody>
+      ${a.monthly.map(x => `<tr><td>${ymLabel(x.m, true)}</td><td class="n">${m2(x.dr)}</td><td class="n">${m2(x.cr)}</td><td class="n">${m2(x.net)}</td></tr>`).join('')}
+      <tr class="tot"><td>${a.monthly.length > 1 ? 'Period Total' : 'Total'}</td><td class="n">${m2(sum(a.monthly, x => x.dr))}</td><td class="n">${m2(sum(a.monthly, x => x.cr))}</td><td class="n">${m2(a.net)}</td></tr></tbody></table>
+    </div>
+    <div class="card"><h3>Supplier / Allocation Concentration</h3><p class="hint">Top 10 contacts by net spend</p>${concTable(a)}</div>
+  </div>
+  <div class="card section"><h3>Account Spend by Contact</h3><p class="hint">Click an account to expand its contacts · <a href="#" id="expAll">Expand All</a> · <a href="#" id="colAll">Collapse All</a></p><div class="tbl-wrap" id="matrix"></div></div>`;
+  $('#main').innerHTML = h; bindPills(); bindCm(d);
+  barChart($('#dChart'), { title: 'Monthly net spend', labels: months.map(m => ymLabel(m)), tipLabels: months.map(m => ymLabel(m, true)), highlight: sel, height: 300,
+    series: [{ name: 'Net Spend', color: cssVar(DEPT_VAR[d]), values: months.map(m => netOf(ROWS.filter(r => r.dept === d && r.period === m))) }],
+    onClick: i => { S.from = S.to = months[i]; syncSel(); render(); } });
+  renderMatrix(a);
+  $('#expAll').onclick = e => { e.preventDefault(); a.accts.forEach(x => S.open.add(x.code + '|' + x.acct)); renderMatrix(a); };
+  $('#colAll').onclick = e => { e.preventDefault(); S.open.clear(); renderMatrix(a); };
+}
+function concTable(a) {
+  const top = a.contacts.slice(0, 10), other = a.contacts.slice(10);
+  const rows = top.map(c => [c.contact, c.net]); if (other.length) rows.push([`Other Contacts (${other.length})`, sum(other, c => c.net)]);
+  const mx = Math.max(...rows.map(r => r[1]), 1);
+  return `<table><thead><tr><th>Contact / Allocation</th><th class="n">Net Spend</th><th class="n">Share</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r[0])}<div class="bar-cell" style="min-width:0"><div class="b" style="width:${Math.max(0, r[1] / mx * 100)}%;margin-top:4px;height:6px"></div></div></td><td class="n">${m2(r[1])}</td><td class="n">${pct(r[1] / a.net)}</td></tr>`).join('')}
+    <tr class="tot"><td>Total</td><td class="n">${m2(a.net)}</td><td class="n">100.0%</td></tr></tbody></table>`;
+}
+function autoShort(contact, rows) {
+  const cl = String(contact || '').toLowerCase().replace(/\.$/, ''); const cnt = new Map();
+  for (const r of rows) {
+    let d = String(r.desc || '').replace(/\s+/g, ' ').trim(); const dl = d.toLowerCase();
+    if (cl && (dl.startsWith(cl + ' - ') || dl.startsWith(cl + '. - '))) d = d.slice(d.indexOf(' - ') + 3);
+    else if (cl && dl.replace(/\.$/, '') === cl) continue;
+    d = d.replace(/^allocate\s+/i, 'Allocation: ').slice(0, 80); if (d) cnt.set(d, (cnt.get(d) || 0) + 1);
+  }
+  return [...cnt].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+}
+function matrixData(a) {
+  const byAcct = groupBy(a.rows, r => r.code + '|' + r.acct);
+  return [...byAcct].map(([k, rs]) => {
+    const contacts = [...groupBy(rs, r => r.contact || 'No Contact')].map(([c, x]) => ({ contact: c, short: shortDesc(a.dept, rs[0].acct, c) || autoShort(c, x), months: a.months.map(m => netOf(x.filter(r => r.period === m))), total: netOf(x) })).sort((p, q) => q.total - p.total);
+    return { key: k, code: k.split('|')[0], acct: rs[0].acct, contacts, months: a.months.map(m => netOf(rs.filter(r => r.period === m))), total: netOf(rs) };
+  }).sort((p, q) => p.acct.localeCompare(q.acct));
+}
+function renderMatrix(a) {
+  const md = matrixData(a);
+  let h = `<table><thead><tr><th>Account / Contact</th><th>Short Description</th>${a.months.map(m => `<th class="n">${ymLabel(m)}</th>`).join('')}${a.months.length > 1 ? '<th class="n">Total</th>' : ''}</tr></thead><tbody>`;
+  for (const g of md) {
+    const open = S.open.has(g.key);
+    h += `<tr class="sub acct-toggle" data-k="${esc(g.key)}"><td colspan="2"><span class="chev">${open ? '▾' : '▸'}</span>${esc(g.acct)} <span class="muted" style="font-weight:400">${esc(g.code)} · ${g.contacts.length} contact${g.contacts.length > 1 ? 's' : ''}</span></td>${g.months.map(v => `<td class="n">${m2(v)}</td>`).join('')}${a.months.length > 1 ? `<td class="n">${m2(g.total)}</td>` : ''}</tr>`;
+    if (open) for (const c of g.contacts) h += `<tr><td style="padding-left:28px">${esc(c.contact)}</td><td class="muted">${esc(c.short)}</td>${c.months.map(v => `<td class="n">${m2(v)}</td>`).join('')}${a.months.length > 1 ? `<td class="n">${m2(c.total)}</td>` : ''}</tr>`;
+  }
+  h += `<tr class="tot"><td colspan="2">Grand Total</td>${a.months.map(m => `<td class="n">${m2(netOf(a.rows.filter(r => r.period === m)))}</td>`).join('')}${a.months.length > 1 ? `<td class="n">${m2(a.net)}</td>` : ''}</tr></tbody></table>`;
+  $('#matrix').innerHTML = h;
+  $('#matrix').querySelectorAll('.acct-toggle').forEach(tr => tr.addEventListener('click', () => { const k = tr.dataset.k; S.open.has(k) ? S.open.delete(k) : S.open.add(k); renderMatrix(a); }));
+}
+function renderPl(d) {
+  const a = plAnalysis(d); const cat = CAT[d]; const months = trailing(); const sel = new Set(months.map((m, i) => (m >= S.from && m <= S.to) ? i : -1).filter(i => i >= 0));
+  const codeTable = (list, title, isInc) => `<div class="card"><h3>${title} by Account Code</h3><p class="hint">${esc(periodLabel())}</p><div class="tbl-wrap"><table><thead><tr><th>Code</th><th>Account</th><th class="n">Txns</th><th class="n">${isInc ? 'Debits / Returns' : 'Debits'}</th><th class="n">${isInc ? 'Credits' : 'Credits / Offsets'}</th><th class="n">${isInc ? 'Net Income' : 'Net Charge'}</th></tr></thead><tbody>
+    ${list.map(c => `<tr><td class="muted code">${esc(c.code)}</td><td>${esc(c.acct)}</td><td class="n">${c.n}</td><td class="n">${m2(c.dr)}</td><td class="n">${m2(c.cr)}</td><td class="n">${m2(c.net)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="2">Total ${title.toLowerCase()}</td><td class="n">${sum(list, c => c.n)}</td><td class="n">${m2(sum(list, c => c.dr))}</td><td class="n">${m2(sum(list, c => c.cr))}</td><td class="n">${m2(sum(list, c => c.net))}</td></tr></tbody></table></div></div>`;
+  let h = deptPills() + `<div class="grid g4">
+    ${kpi('Net ' + cat.incomeTitle, money(a.pl.income), deltaHtml(a.pl.income, a.prev && a.prev.income, { goodWhenDown: false, label: 'vs ' + periodLabel(a.pf, a.pt) }))}
+    ${kpi('Net ' + cat.chargeTitle, money(a.pl.charges), deltaHtml(a.pl.charges, a.prev && a.prev.charges, { label: 'vs ' + periodLabel(a.pf, a.pt) }))}
+    ${kpi('Net Result', `<span style="color:${a.pl.result < 0 ? 'var(--bad)' : 'inherit'}">${money(a.pl.result)}</span>`, deltaHtml(a.pl.result, a.prev && a.prev.result, { goodWhenDown: false, label: 'vs ' + periodLabel(a.pf, a.pt) }))}
+    ${kpi(cat.ratioLabel, pct(a.ratio), d === 'Sales' ? 'Net result ÷ net income' : 'Net income ÷ net charges')}
+  </div>
+  <div class="grid g2 section">${takeawayCard(plTakeaways(a))}${commentaryCard(d)}</div>
+  <div class="grid g2 section">
+    <div class="card"><h3>Monthly Income vs Charges</h3><p class="hint">Last ${months.length} month${months.length > 1 ? 's' : ''} · selected period highlighted</p><div id="dChart"></div>
+      <table style="margin-top:10px"><thead><tr><th>Month</th><th class="n">Net Income</th><th class="n">Net Charges</th><th class="n">Net Result</th></tr></thead><tbody>
+      ${a.monthly.map(x => `<tr><td>${ymLabel(x.m, true)}</td><td class="n">${m2(x.income)}</td><td class="n">${m2(x.charges)}</td><td class="n">${m2(x.result)}</td></tr>`).join('')}
+      <tr class="tot"><td>Total</td><td class="n">${m2(a.pl.income)}</td><td class="n">${m2(a.pl.charges)}</td><td class="n">${m2(a.pl.result)}</td></tr></tbody></table></div>
+    <div class="card"><h3>Result by Category</h3><p class="hint">Income matched to its charges · ${esc(periodLabel())}</p><table><thead><tr><th>Category</th><th class="n">Net Income</th><th class="n">Net Charge</th><th class="n">Net Result</th><th class="n">Margin %</th></tr></thead><tbody>
+      ${a.cats.map(c => `<tr><td>${esc(c.name)}</td><td class="n">${m2(c.income)}</td><td class="n">${m2(c.charge)}</td><td class="n" style="color:${c.result < 0 ? 'var(--bad)' : 'inherit'}">${m2(c.result)}</td><td class="n">${c.margin == null ? '–' : pct(c.margin)}</td></tr>`).join('')}
+      <tr class="tot"><td>Total</td><td class="n">${m2(a.pl.income)}</td><td class="n">${m2(a.pl.charges)}</td><td class="n">${m2(a.pl.result)}</td><td class="n">${pct(a.pl.income ? a.pl.result / a.pl.income : null)}</td></tr></tbody></table></div>
+  </div>
+  <div class="grid g1 section">${codeTable(a.income, cat.incomeTitle, true)}${codeTable(a.charges, cat.chargeTitle, false)}</div>`;
+  $('#main').innerHTML = h; bindPills(); bindCm(d);
+  barChart($('#dChart'), { title: 'Monthly income vs charges', labels: months.map(m => ymLabel(m)), tipLabels: months.map(m => ymLabel(m, true)), highlight: sel, height: 200,
+    series: [{ name: 'Net Income', color: cssVar('--s1'), values: months.map(m => plOf(d, ROWS.filter(r => r.dept === d && r.period === m)).income) },
+             { name: 'Net Charges', color: cssVar('--s2'), values: months.map(m => plOf(d, ROWS.filter(r => r.dept === d && r.period === m)).charges) }],
+    extraTip: i => { const p = plOf(d, ROWS.filter(r => r.dept === d && r.period === months[i])); return `<div class="r" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span>Net Result</span><b>${m2(p.result)}</b></div>`; },
+    onClick: i => { S.from = S.to = months[i]; syncSel(); render(); } });
+}
+function txFiltered() {
+  const q = S.txSearch.trim().toLowerCase();
+  return rowsFor(S.txDept).filter(r => (!S.txAcct || r.code + '|' + r.acct === S.txAcct) && (!q || (r.contact + ' ' + r.desc + ' ' + r.ref + ' ' + r.acct + ' ' + r.code + ' ' + r.source).toLowerCase().includes(q)))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.dept.localeCompare(b.dept));
+}
+function renderTx() {
+  const base = rowsFor(S.txDept);
+  const accts = [...new Map(base.map(r => [r.code + '|' + r.acct, r])).values()].sort((a, b) => a.acct.localeCompare(b.acct));
+  if (S.txAcct && !accts.some(r => r.code + '|' + r.acct === S.txAcct)) S.txAcct = '';
+  $('#main').innerHTML = `<div class="card"><div class="row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <select id="txDept"><option value="ALL">All Departments</option>${DEPTS.map(d => `<option${d === S.txDept ? ' selected' : ''}>${d}</option>`).join('')}</select>
+    <select id="txAcct" style="max-width:320px"><option value="">All Accounts</option>${accts.map(r => `<option value="${esc(r.code + '|' + r.acct)}"${S.txAcct === r.code + '|' + r.acct ? ' selected' : ''}>${esc(r.code)} · ${esc(r.acct)}</option>`).join('')}</select>
+    <input type="search" id="txQ" placeholder="Search contact, description, reference…" value="${esc(S.txSearch)}" style="flex:1;min-width:220px">
+  </div><div id="txBody"></div></div>`;
+  $('#txDept').onchange = e => { S.txDept = e.target.value; S.txAcct = ''; S.txLimit = 150; renderTx(); };
+  $('#txAcct').onchange = e => { S.txAcct = e.target.value; S.txLimit = 150; renderTxBody(); };
+  $('#txQ').oninput = e => { S.txSearch = e.target.value; S.txLimit = 150; renderTxBody(); };
+  renderTxBody();
+}
+function renderTxBody() {
+  const rows = txFiltered(); const shown = rows.slice(0, S.txLimit);
+  $('#txBody').innerHTML = `<p class="hint">${rows.length.toLocaleString('en-AU')} transactions · Debit ${m2(sum(rows, r => r.dr))} · Credit ${m2(sum(rows, r => r.cr))} · Net ${m2(sum(rows, r => r.dr - r.cr))}</p>
+   <div class="tbl-wrap" style="max-height:640px"><table><thead><tr><th>Date</th><th>Department</th><th>Code</th><th>Account</th><th>Contact</th><th>Description</th><th>Reference</th><th class="n">Debit</th><th class="n">Credit</th></tr></thead><tbody>
+   ${shown.map(r => `<tr><td style="white-space:nowrap">${r.date.split('-').reverse().join('/')}</td><td>${esc(DEPT_SHORT[r.dept])}</td><td class="muted">${esc(r.code)}</td><td>${esc(r.acct)}</td><td>${esc(r.contact)}</td><td style="max-width:360px">${esc(r.desc)}</td><td class="muted">${esc(r.ref)}</td><td class="n">${r.dr ? m2(r.dr) : ''}</td><td class="n">${r.cr ? m2(r.cr) : ''}</td></tr>`).join('')}
+   </tbody></table></div>${rows.length > shown.length ? `<div style="text-align:center;margin-top:10px"><button class="btn" id="txMore">Show More (${(rows.length - shown.length).toLocaleString('en-AU')} remaining)</button></div>` : ''}`;
+  const mb = $('#txMore'); if (mb) mb.onclick = () => { S.txLimit += 500; renderTxBody(); };
+}
+
+/* ============================== COMMENTARY ============================== */
+function bindCm(dept) {
+  const b = $('#cmEdit'); if (!b) return;
+  b.onclick = () => {
+    $('#cmSub').textContent = `${dept} · ${ymLabel(S.to, true)}`; $('#cmText').value = COMMENTARY.get(dept + '|' + S.to) || '';
+    $('#cmStatus').textContent = ''; $('#cmStatus').className = 'status'; $('#cmModal').classList.add('show'); $('#cmModal').dataset.dept = dept; $('#cmModal').dataset.period = S.to;
+  };
+}
+$('#cmCancel').onclick = () => $('#cmModal').classList.remove('show');
+$('#cmSave').onclick = async () => {
+  const st = $('#cmStatus'); const dept = $('#cmModal').dataset.dept, period = $('#cmModal').dataset.period;
+  if (!sb) { st.className = 'status err'; st.textContent = 'Not connected to the database.'; return; }
+  st.className = 'status'; st.textContent = 'Saving…';
+  const { error } = await sb.rpc('cc_save_commentary', { p_pass: $('#cmPass').value, p_dept: dept, p_period: period + '-01', p_note: $('#cmText').value });
+  if (error) { st.className = 'status err'; st.textContent = error.message.includes('passphrase') ? 'Incorrect admin passphrase.' : error.message; return; }
+  const t = $('#cmText').value.trim(); t ? COMMENTARY.set(dept + '|' + period, t) : COMMENTARY.delete(dept + '|' + period);
+  $('#cmModal').classList.remove('show'); render();
+};
+
+/* ============================== UPLOAD ============================== */
+let PENDING = null;
+function cellVal(c) { let v = c.value; if (v && typeof v === 'object') { if ('result' in v) v = v.result; else if (v.richText) v = v.richText.map(t => t.text).join(''); else if (v.text) v = v.text; } return v; }
+function toISO(v) {
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'number' && v > 20000 && v < 80000) { const d = new Date(Math.round((v - 25569) * 86400000)); return d.toISOString().slice(0, 10); }
+  if (typeof v === 'string') { let m = v.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[0]; m = v.trim().match(/^(\d{1,2}) ([A-Za-z]{3})[a-z]* (\d{4})$/); if (m) { const i = MON.findIndex(x => x.toLowerCase() === m[2].toLowerCase()); if (i >= 0) return `${m[3]}-${String(i + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`; } }
+  return null;
+}
+const DEPT_ALIAS = { 'gen mgt': 'General Management', 'general management': 'General Management', 'gen management': 'General Management', 'cs & installation': 'CS & Installation', 'cs and installation': 'CS & Installation', 'cs': 'CS & Installation', 'finance': 'Finance', 'executive': 'Executive', 'exe': 'Executive', 'marketing': 'Marketing', 'sales': 'Sales' };
+const canonDept = s => DEPT_ALIAS[String(s || '').trim().toLowerCase()] || null;
+function deptFromName(name) {
+  const f = String(name || '').toLowerCase().replace(/\.xlsx$/, '');
+  const parts = f.split(/\s*[-–_]\s*|\s{2,}/).map(x => x.trim()).filter(Boolean);
+  for (const p of parts.reverse()) if (canonDept(p)) return canonDept(p);
+  for (const k of Object.keys(DEPT_ALIAS).sort((a, b) => b.length - a.length)) if (k.length > 3 && f.includes(k)) return DEPT_ALIAS[k];
+  return null;
+}
+/* Reads either a raw Xero "Account Transactions" export (Date first, no Contact column, one sheet per
+   department or a single sheet) or a final approved Cost Centre Analysis workbook (Account Code first, with Contact). */
+async function parseWorkbook(file) {
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer());
+  const fileDept = deptFromName(file.name);
+  const out = [], notes = []; let kinds = new Set();
+  for (const ws of wb.worksheets) {
+    let hdr = null, col = {};
+    for (let rn = 1; rn <= Math.min(ws.rowCount, 20) && !hdr; rn++) {
+      const vals = ws.getRow(rn).values.map(v => String(cellVal({ value: v }) ?? '').trim().toLowerCase());
+      if (vals.includes('date') && vals.includes('debit (aud)') && vals.includes('account code')) { hdr = rn; vals.forEach((v, i) => { if (v && !col[v]) col[v] = i; }); }
+    }
+    if (!hdr) continue;
+    const kind = col['contact'] ? 'approved' : 'raw'; kinds.add(kind);
+    const sheetDept = deptFromName(ws.name);
+    let acct = null;
+    for (let rn = hdr + 1; rn <= ws.rowCount; rn++) {
+      const row = ws.getRow(rn); const g = n => col[n] ? cellVal(row.getCell(col[n])) : null;
+      const first = cellVal(row.getCell(1));
+      const date = toISO(g('date'));
+      if (!date) {
+        if (first != null && String(first).trim() !== '') { const s = String(first).trim(); if (!/^total\b/i.test(s) && !/^(departments is|account type)/i.test(s)) acct = s.replace(/\s*\[[\w-]+\]\s*$/, ''); }
+        continue;
+      }
+      const code = String(g('account code') ?? '').trim(); if (!code) continue;
+      const dept = canonDept(g('departments')) || sheetDept || fileDept;
+      if (!dept) throw new Error(`${file.name} › ${ws.name}: row ${rn} has no recognisable department`);
+      out.push({ dept, period: date.slice(0, 7), date, code, acct: acct || code, source: String(g('source') ?? ''), contact: kind === 'approved' ? String(g('contact') ?? '').trim() : null,
+        desc: String(g('description') ?? '').trim(), ref: String(g('reference') ?? '').trim(), dr: r2(+g('debit (aud)') || 0), cr: r2(+g('credit (aud)') || 0), cflag: kind === 'approved' ? 'given' : null });
+    }
+  }
+  if (!out.length) throw new Error(`${file.name}: no Account Transactions rows found (expected Xero columns Date, Description, Debit (AUD), Credit (AUD), Account Code, Departments)`);
+  // Short descriptions from an approved "Account Spend by Contact" sheet, if present
+  for (const w of wb.worksheets) {
+    let hr = null, c = {};
+    for (let rn = 1; rn <= Math.min(w.rowCount, 12) && !hr; rn++) { const v = w.getRow(rn).values.map(x => String(cellVal({ value: x }) ?? '').trim().toLowerCase()); if (v.includes('short description') && v.includes('contact')) { hr = rn; v.forEach((x, i) => { if (x) c[x] = i; }); } }
+    if (!hr) continue;
+    for (let rn = hr + 1; rn <= w.rowCount; rn++) {
+      const row = w.getRow(rn); const an = cellVal(row.getCell(c['account name'])), ct = cellVal(row.getCell(c['contact'])), sd = cellVal(row.getCell(c['short description']));
+      if (an && ct && sd && !/subtotal|total/i.test(String(an))) notes.push({ dept: out[0].dept, acct: String(an).trim(), contact: String(ct).trim(), short: String(sd).trim() });
+    }
+  }
+  return { rows: out, notes, kinds: [...kinds] };
+}
+/* Raw Xero exports have no Contact column: Xero writes "Contact - line description" into Description.
+   Order: (1) same description seen before in this department, (2) longest known contact the description starts with,
+   (3) allocation journals naming a known contact, (4) text before the first " - ", (5) the whole description. */
+function deriveContacts(rows) {
+  const hist = [...ROWS, ...rows.filter(r => r.cflag === 'given')];
+  const exact = new Map(); for (const r of hist) if (r.contact) exact.set(r.dept + '|' + r.desc.toLowerCase(), r.contact);
+  const known = [...new Set(hist.map(r => (r.contact || '').trim()).filter(Boolean))].sort((a, b) => b.length - a.length);
+  const knownLc = known.map(k => [k, k.toLowerCase().replace(/\.$/, '')]);
+  for (const r of rows) {
+    if (r.cflag === 'given') continue;
+    const d = r.desc.trim(), dl = d.toLowerCase();
+    let c = exact.get(r.dept + '|' + dl), how = 'exact';
+    if (!c) { const k = knownLc.find(([, kl]) => dl === kl || dl.startsWith(kl + ' - ') || dl.startsWith(kl + '. - ')); if (k) { c = k[0]; how = 'known'; } }
+    if (!c && /^allocate\b/i.test(d)) {
+      const k = knownLc.find(([, kl]) => kl.length > 3 && dl.includes(kl)) || knownLc.find(([, kl]) => { const w = kl.split(/\s+/)[0]; return w.length > 3 && new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(dl); });
+      if (k) { c = k[0]; how = 'review'; }
+    }
+    if (!c) { c = (d.includes(' - ') ? d.split(' - ')[0] : d).trim().replace(/\.$/, '') || 'No contact'; how = 'review'; }
+    r.contact = c; r.cflag = how;
+  }
+  return rows;
+}
+$('#uploadBtn').onclick = () => { PENDING = null; $('#upFiles').value = ''; $('#upPreview').innerHTML = ''; $('#upStatus').textContent = ''; $('#upGo').disabled = true; $('#upModal').classList.add('show'); };
+$('#upCancel').onclick = () => $('#upModal').classList.remove('show');
+$('#upFiles').onchange = async e => {
+  const st = $('#upStatus'); st.className = 'status'; st.textContent = 'Reading files…'; $('#upGo').disabled = true;
+  try {
+    const rows = [], notes = [], kinds = new Set();
+    for (const f of e.target.files) { const r = await parseWorkbook(f); rows.push(...r.rows); notes.push(...r.notes); r.kinds.forEach(k => kinds.add(k)); }
+    deriveContacts(rows);
+    const groups = [...groupBy(rows, r => r.dept + '|' + r.period)].sort();
+    const review = [...groupBy(rows.filter(r => r.cflag === 'review'), r => r.dept + '|' + r.contact)].map(([k, rs]) => ({ k, dept: rs[0].dept, contact: rs[0].contact, rows: rs, net: sum(rs, r => r.dr - r.cr) })).sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+    PENDING = { groups, notes, review };
+    $('#upPreview').innerHTML = `<p class="hint">Format detected: ${[...kinds].map(k => k === 'raw' ? 'Raw Xero Account Transactions' : 'Approved Cost Centre report').join(' + ')}</p>
+      <table><thead><tr><th><input type="checkbox" id="upAll" checked aria-label="Select all"></th><th>Department</th><th>Month</th><th class="n">Rows</th><th class="n">Debit</th><th class="n">Credit</th><th class="n">Net</th><th>Action</th></tr></thead><tbody>${groups.map(([k, rs]) => {
+      const [d, p] = k.split('|'); const ex = ROWS.filter(r => r.dept === d && r.period === p).length;
+      return `<tr><td><input type="checkbox" data-g="${esc(k)}" checked></td><td>${d}</td><td>${ymLabel(p, true)}</td><td class="n">${rs.length}</td><td class="n">${m2(sum(rs, r => r.dr))}</td><td class="n">${m2(sum(rs, r => r.cr))}</td><td class="n">${m2(sum(rs, r => r.dr - r.cr))}</td><td>${ex ? `<span class="delta up">Replaces ${ex} rows</span>` : '<span class="delta pos">New Month</span>'}</td></tr>`; }).join('')}</tbody></table>
+      ${review.length ? `<h3 style="margin:16px 0 4px;font-size:14px">Contacts To Review (${review.length})</h3><p class="hint">The raw Xero export has no Contact column, so these contacts were read from the Description. Correct any that are wrong — the change applies to every row in the group.</p>
+      <div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>Department</th><th>Contact</th><th>Example Description</th><th class="n">Rows</th><th class="n">Net</th></tr></thead><tbody>
+      ${review.map((g, i) => `<tr><td>${esc(DEPT_SHORT[g.dept])}</td><td><input type="text" data-rv="${i}" value="${esc(g.contact)}" style="width:100%;min-width:170px"></td><td class="muted" style="max-width:300px">${esc(g.rows[0].desc.slice(0, 110))}</td><td class="n">${g.rows.length}</td><td class="n">${m2(g.net)}</td></tr>`).join('')}
+      </tbody></table></div>` : ''}
+      <p class="hint">${notes.length ? notes.length + ' short descriptions found. ' : ''}Check the Net column against Xero before loading.</p>`;
+    const syncGo = () => { PENDING.selected = new Set([...$('#upPreview').querySelectorAll('input[data-g]')].filter(x => x.checked).map(x => x.dataset.g)); $('#upGo').disabled = !PENDING.selected.size; };
+    $('#upPreview').querySelectorAll('input[data-g]').forEach(x => x.onchange = syncGo);
+    $('#upAll').onchange = e => { $('#upPreview').querySelectorAll('input[data-g]').forEach(x => { x.checked = e.target.checked; }); syncGo(); };
+    PENDING.selected = new Set(groups.map(g => g[0]));
+    $('#upPreview').querySelectorAll('input[data-rv]').forEach(inp => inp.onchange = () => { const g = review[+inp.dataset.rv]; const v = inp.value.trim() || 'No contact'; g.rows.forEach(r => { r.contact = v; }); });
+    st.textContent = `${rows.length.toLocaleString('en-AU')} transactions across ${groups.length} department-month${groups.length > 1 ? 's' : ''}.${review.length ? ` ${review.length} contact${review.length > 1 ? 's' : ''} to review below.` : ''}`; $('#upGo').disabled = !groups.length;
+  } catch (err) { console.error(err); st.className = 'status err'; st.textContent = err.message; }
+};
+$('#upGo').onclick = async () => {
+  const st = $('#upStatus'); if (!PENDING) return;
+  if (!sb) { st.className = 'status err'; st.textContent = 'Not connected to the database.'; return; }
+  $('#upGo').disabled = true; const pass = $('#upPass').value;
+  try {
+    let i = 0; const todo = PENDING.groups.filter(([k]) => PENDING.selected.has(k));
+    for (const [k, rs] of todo) {
+      const [d, p] = k.split('|'); st.className = 'status'; st.textContent = `Loading ${d} ${ymLabel(p, true)} (${++i}/${todo.length})…`;
+      const payload = rs.map(r => ({ txn_date: r.date, account_code: r.code, account_name: r.acct, source: r.source, contact: r.contact, description: r.desc, reference: r.ref, debit: r.dr, credit: r.cr }));
+      const { error } = await sb.rpc('cc_replace_month', { p_pass: pass, p_dept: d, p_period: p + '-01', p_rows: payload });
+      if (error) throw error;
+    }
+    if (PENDING.notes.length) { const { error } = await sb.rpc('cc_upsert_notes', { p_pass: pass, p_notes: PENDING.notes.map(n => ({ dept: n.dept, account_name: n.acct, contact: n.contact, short_desc: n.short })) }); if (error) throw error; }
+    st.className = 'status ok'; st.textContent = 'Loaded. Refreshing dashboard…';
+    const keep = { from: S.from, to: S.to }; await loadLive(); const latest = MONTHS[MONTHS.length - 1]; S.from = S.to = latest; syncSel(); render();
+    setTimeout(() => $('#upModal').classList.remove('show'), 900);
+  } catch (err) { console.error(err); st.className = 'status err'; st.textContent = (err.message || '').includes('passphrase') ? 'Incorrect admin passphrase — nothing was changed for the remaining months.' : 'Upload failed: ' + err.message; $('#upGo').disabled = false; }
+};
+
+/* ============================== EXCEL EXPORT ============================== */
+const XC = { navy: 'FF1F3A5F', navy2: 'FF2E5A88', band: 'FFF3F6FA', sub: 'FFE4EBF3', line: 'FFD0D7E1', white: 'FFFFFFFF', ink: 'FF1B1B1B', grey: 'FF5B6470', kpiBg: 'FFF0F4F9', red: 'FFC03333' };
+const NUM = '#,##0.00;[Red]-#,##0.00;"-"';
+const NUM0 = '$#,##0;[Red]-$#,##0;"-"';
+const PCT = '0.0%;[Red]-0.0%;"-"';
+const thin = { style: 'thin', color: { argb: XC.line } };
+function xTitle(ws, title, sub, lastCol) {
+  ws.mergeCells(1, 1, 1, lastCol); ws.mergeCells(2, 1, 2, lastCol);
+  const t = ws.getCell(1, 1); t.value = title; t.font = { name: 'Calibri', size: 16, bold: true, color: { argb: XC.white } }; t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XC.navy } }; t.alignment = { vertical: 'middle', indent: 1 };
+  const s = ws.getCell(2, 1); s.value = sub; s.font = { name: 'Calibri', size: 10, italic: true, color: { argb: XC.white } }; s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XC.navy2 } }; s.alignment = { vertical: 'middle', indent: 1 };
+  ws.getRow(1).height = 28; ws.getRow(2).height = 18;
+}
+function xSection(ws, r, c1, c2, text) {
+  ws.mergeCells(r, c1, r, c2); const c = ws.getCell(r, c1); c.value = text;
+  c.font = { bold: true, size: 11, color: { argb: XC.navy } }; c.border = { bottom: { style: 'medium', color: { argb: XC.navy } } };
+  for (let i = c1; i <= c2; i++) ws.getCell(r, i).border = { bottom: { style: 'medium', color: { argb: XC.navy } } };
+  ws.getRow(r).height = 20;
+}
+function xHeader(ws, r, c1, labels, aligns) {
+  labels.forEach((l, i) => { const c = ws.getCell(r, c1 + i); c.value = l; c.font = { bold: true, color: { argb: XC.white }, size: 10 }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XC.navy } }; c.alignment = { horizontal: (aligns && aligns[i]) || 'left', vertical: 'middle', wrapText: true }; c.border = { top: thin, bottom: thin, left: thin, right: thin }; });
+  ws.getRow(r).height = 20;
+}
+function xRow(ws, r, c1, vals, fmts, opt = {}) {
+  vals.forEach((v, i) => {
+    const c = ws.getCell(r, c1 + i); c.value = v; if (fmts && fmts[i]) c.numFmt = fmts[i];
+    c.border = { top: thin, bottom: thin, left: thin, right: thin }; c.font = { size: 10, bold: !!opt.bold, color: { argb: XC.ink } };
+    if (fmts && fmts[i]) c.alignment = { horizontal: 'right', vertical: 'middle' }; else c.alignment = { vertical: 'middle', wrapText: !!opt.wrap };
+    const fill = opt.total ? XC.sub : opt.sub ? XC.sub : (opt.band ? XC.band : null); if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    if (opt.total) c.border = { top: { style: 'thin', color: { argb: XC.navy } }, bottom: { style: 'double', color: { argb: XC.navy } }, left: thin, right: thin };
+  });
+}
+function xKpis(ws, r, items) { // items: [{label, value, fmt, cap, span:[c1,c2]}]
+  for (const k of items) {
+    const [c1, c2] = k.span;
+    ws.mergeCells(r, c1, r, c2); ws.mergeCells(r + 1, c1, r + 2, c2); ws.mergeCells(r + 3, c1, r + 3, c2);
+    const l = ws.getCell(r, c1), v = ws.getCell(r + 1, c1), cp = ws.getCell(r + 3, c1);
+    l.value = k.label.toUpperCase(); l.font = { bold: true, size: 9, color: { argb: XC.grey } };
+    v.value = k.value; v.numFmt = k.fmt || NUM0; v.font = { bold: true, size: k.small ? 12 : 18, color: { argb: XC.navy } }; v.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 };
+    cp.value = k.cap || ''; cp.font = { size: 9, italic: true, color: { argb: XC.grey } };
+    l.alignment = cp.alignment = { indent: 1 };
+    for (let rr = r; rr <= r + 3; rr++) for (let cc = c1; cc <= c2; cc++) { const x = ws.getCell(rr, cc); x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XC.kpiBg } }; }
+    for (let cc = c1; cc <= c2; cc++) { ws.getCell(r, cc).border = { top: { style: 'medium', color: { argb: XC.navy2 } } }; }
+  }
+}
+function xTakeaways(ws, r, lastCol, list, commentary) {
+  xSection(ws, r, 1, lastCol, 'KEY TAKEAWAYS'); r++;
+  list.forEach((t, i) => {
+    ws.mergeCells(r, 1, r, lastCol); const h = ws.getCell(r, 1); h.value = `${i + 1}  ${t[0]}`; h.font = { bold: true, size: 11, color: { argb: XC.ink } }; r++;
+    ws.mergeCells(r, 1, r, lastCol); const b = ws.getCell(r, 1); b.value = t[1]; b.font = { size: 10, color: { argb: XC.grey } }; b.alignment = { wrapText: true, vertical: 'top' };
+    ws.getRow(r).height = Math.max(18, Math.ceil(t[1].length / 120) * 15); r++;
+  });
+  if (commentary.length) {
+    r++; xSection(ws, r, 1, lastCol, 'APPROVED COMMENTARY'); r++;
+    for (const [m, t] of commentary) {
+      ws.mergeCells(r, 1, r, lastCol); ws.getCell(r, 1).value = ymLabel(m, true); ws.getCell(r, 1).font = { bold: true, size: 10 }; r++;
+      ws.mergeCells(r, 1, r, lastCol); const c = ws.getCell(r, 1); c.value = t; c.font = { size: 10 }; c.alignment = { wrapText: true, vertical: 'top' };
+      ws.getRow(r).height = Math.max(18, (t.split('\n').length + Math.ceil(t.length / 120)) * 14); r++;
+    }
+  }
+  return r + 1;
+}
+function xSetup(ws, landscape = true) {
+  ws.views = [{ showGridLines: false }];
+  ws.pageSetup = { orientation: landscape ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  ws.headerFooter = { oddFooter: '&L&8Digital Door Locks Pty Ltd — Cost Centre Report&R&8Page &P of &N' };
+}
+function commentaryList(dept, from, to) { return monthsBetween(from, to).map(m => [m, COMMENTARY.get(dept + '|' + m)]).filter(x => x[1]); }
+
+function xSpendSummary(wb, a, sheetName) {
+  const ws = wb.addWorksheet(sheetName, { properties: { tabColor: { argb: XC.navy } } }); xSetup(ws);
+  ws.columns = [{ width: 38 }, { width: 11 }, { width: 16 }, { width: 10 }, { width: 3 }, { width: 3 }, { width: 38 }, { width: 16 }, { width: 16 }, { width: 16 }];
+  xTitle(ws, `${quarterTitle(a.from, a.to)} ${a.dept} Spend Insights`, `${COMPANY} | ${periodLong(a.from, a.to)} | AUD`, 10);
+  const top = a.accts[0];
+  const multi = a.monthly.length > 1;
+  xKpis(ws, 4, [
+    { label: 'Net Spend', value: a.net, cap: multi ? 'Period net outflow' : 'Month net outflow', span: [1, 2] },
+    { label: 'Transactions', value: a.rows.length, fmt: '#,##0', cap: 'Ledger entries', span: [3, 4] },
+    { label: 'Largest Account', value: top ? top.net : 0, cap: top ? top.acct : '', span: [7, 8] },
+    multi ? { label: `${MON[+a.from.slice(5) - 1]}–${MON[+a.to.slice(5) - 1]} Change`, value: a.monthly[0].net ? a.monthly.at(-1).net / a.monthly[0].net - 1 : 0, fmt: PCT, cap: 'Monthly net spend change', span: [9, 10] }
+          : { label: 'Change vs Prior Month', value: a.prev ? a.net / a.prev - 1 : 0, fmt: PCT, cap: a.prev ? `vs ${ymLabel(a.pf, true)} (${money(a.prev)})` : 'No prior month loaded', span: [9, 10] }
+  ]);
+  let r = xTakeaways(ws, 9, 10, spendTakeaways(a), commentaryList(a.dept, a.from, a.to));
+  // Account Mix (A:D) | Monthly Movement (G:J)
+  xSection(ws, r, 1, 4, 'ACCOUNT MIX'); xSection(ws, r, 7, 10, (a.cmp || []).length === 2 ? `MONTHLY MOVEMENT — ${ymLabel(a.cmp[0], true).toUpperCase()} VS ${ymLabel(a.cmp[1], true).toUpperCase()}` : 'MONTHLY MOVEMENT'); r++;
+  xHeader(ws, r, 1, ['Account', 'Code', 'Net Spend', 'Share'], ['left', 'left', 'right', 'right']);
+  xHeader(ws, r, 7, ['Month', 'Gross Debit', 'Credit', 'Net Spend'], ['left', 'right', 'right', 'right']);
+  const start = r + 1; let ra = start;
+  const accts = a.accts.slice().sort((x, y) => y.net - x.net);
+  accts.forEach((x, i) => { xRow(ws, ra, 1, [x.acct, isNaN(+x.code) ? x.code : +x.code, x.net, a.net ? x.net / a.net : 0], [null, null, NUM, PCT], { band: i % 2 === 1 }); ws.getCell(ra, 2).alignment = { horizontal: 'left' }; ra++; });
+  xRow(ws, ra, 1, ['Total', '', { formula: `SUM(C${start}:C${ra - 1})`, result: a.net }, 1], [null, null, NUM, PCT], { total: true, bold: true }); ra++;
+  let rm = start; const cmp = a.cmp || [a.to];
+  const mm = cmp.map(m => { const rs = rowsFor(a.dept, m, m); return { m, dr: r2(sum(rs, r => r.dr)), cr: r2(sum(rs, r => r.cr)), net: netOf(rs) }; });
+  mm.forEach((x, i) => { xRow(ws, rm, 7, [ymLabel(x.m, true), x.dr, x.cr, { formula: `H${rm}-I${rm}`, result: x.net }], [null, NUM, NUM, NUM], { band: i % 2 === 1, bold: i === mm.length - 1 }); rm++; });
+  if (mm.length === 2) {
+    const [p, c] = mm, s0 = start, s1 = start + 1;
+    xRow(ws, rm, 7, ['Change', { formula: `H${s1}-H${s0}`, result: r2(c.dr - p.dr) }, { formula: `I${s1}-I${s0}`, result: r2(c.cr - p.cr) }, { formula: `J${s1}-J${s0}`, result: r2(c.net - p.net) }], [null, NUM, NUM, NUM], { total: true, bold: true }); rm++;
+    const pc = (x, y) => y ? x / y - 1 : '';
+    xRow(ws, rm, 7, ['Change %', { formula: `IF(H${s0}=0,"",H${s1}/H${s0}-1)`, result: pc(c.dr, p.dr) }, { formula: `IF(I${s0}=0,"",I${s1}/I${s0}-1)`, result: pc(c.cr, p.cr) }, { formula: `IF(J${s0}=0,"",J${s1}/J${s0}-1)`, result: pc(c.net, p.net) }], [null, PCT, PCT, PCT], { sub: true }); rm++;
+  } else {
+    ws.mergeCells(rm, 7, rm, 10); const c = ws.getCell(rm, 7); c.value = `No ${ymLabel(addM(a.to, -1), true)} data loaded to compare against.`; c.font = { size: 9, italic: true, color: { argb: XC.grey } }; rm++;
+  }
+  // Supplier concentration under monthly movement
+  rm += 1; xSection(ws, rm, 7, 9, 'SUPPLIER / ALLOCATION CONCENTRATION'); rm++;
+  xHeader(ws, rm, 7, ['Contact / Allocation', 'Net Spend', 'Share'], ['left', 'right', 'right']); rm++;
+  const top10 = a.contacts.slice(0, 10), other = a.contacts.slice(10); const cs = rm;
+  top10.forEach((c, i) => { xRow(ws, rm, 7, [c.contact, c.net, a.net ? c.net / a.net : 0], [null, NUM, PCT], { band: i % 2 === 1 }); rm++; });
+  if (other.length) { const v = sum(other, c => c.net); xRow(ws, rm, 7, [`Other Contacts (${other.length})`, v, a.net ? v / a.net : 0], [null, NUM, PCT], { band: top10.length % 2 === 1 }); rm++; }
+  xRow(ws, rm, 7, ['Total', { formula: `SUM(H${cs}:H${rm - 1})`, result: a.net }, 1], [null, NUM, PCT], { total: true, bold: true });
+  ws.pageSetup.printArea = `A1:J${Math.max(ra, rm)}`;
+  return ws;
+}
+function xSpendByContact(wb, a0) {
+  const cmp = a0.cmp || [a0.to]; const a = spendAnalysis(a0.dept, cmp[0], cmp[cmp.length - 1]);
+  const ws = wb.addWorksheet('Account Spend by Contact'); xSetup(ws);
+  const nM = a.months.length, two = nM === 2; const lastCol = 3 + nM + (two ? 1 : 0) + 1;
+  ws.columns = [{ width: 38 }, { width: 34 }, { width: 46 }, ...a.months.map(() => ({ width: 15 })), ...(two ? [{ width: 17 }] : []), { width: 15 }];
+  xTitle(ws, 'Account Spend by Contact', `Monthly net spend (debits less credits) by account name and contact | ${a.dept} | ${two ? ymLabel(cmp[0], true) + ' vs ' + ymLabel(cmp[1], true) : ymLabel(a.to, true)} | AUD`, lastCol);
+  const hr = 4; xHeader(ws, hr, 1, ['Account Name', 'Contact', 'Short Description', ...a.months.map(m => ymLabel(m, true)), ...(two ? ['Change'] : []), 'Account Code'], ['left', 'left', 'left', ...a.months.map(() => 'right'), ...(two ? ['right'] : []), 'left']);
+  ws.views = [{ state: 'frozen', ySplit: hr, xSplit: 1, showGridLines: false }];
+  ws.autoFilter = { from: { row: hr, column: 1 }, to: { row: hr, column: lastCol } };
+  const colL = i => String.fromCharCode(64 + i); const mC = j => colL(4 + j), chC = colL(4 + nM);
+  const fm = () => a.months.map(() => NUM);
+  const chg = (r, v) => two ? [{ formula: `${mC(1)}${r}-${mC(0)}${r}`, result: r2(v[1] - v[0]) }] : [];
+  let r = hr + 1; const subRows = [];
+  for (const g of matrixData(a)) {
+    const s0 = r;
+    g.contacts.forEach((c, i) => {
+      xRow(ws, r, 1, [g.acct, c.contact === 'No Contact' ? 'No contact' : c.contact, c.short, ...c.months, ...chg(r, c.months), isNaN(+g.code) ? g.code : +g.code], [null, null, null, ...fm(), ...(two ? [NUM] : []), null], { band: i % 2 === 1, wrap: true });
+      ws.getCell(r, lastCol).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }; r++;
+    });
+    xRow(ws, r, 1, [`${g.acct} Subtotal`, '', '', ...a.months.map((m, j) => ({ formula: `SUM(${mC(j)}${s0}:${mC(j)}${r - 1})`, result: g.months[j] })), ...chg(r, g.months), ''], [null, null, null, ...fm(), ...(two ? [NUM] : []), null], { sub: true, bold: true });
+    subRows.push(r); r++;
+  }
+  const gm = a.months.map(m => netOf(a.rows.filter(x => x.period === m)));
+  xRow(ws, r, 1, ['Grand Total', '', '', ...a.months.map((m, j) => ({ formula: subRows.map(x => `${mC(j)}${x}`).join('+') || '0', result: gm[j] })), ...chg(r, gm), ''], [null, null, null, ...fm(), ...(two ? [NUM] : []), null], { total: true, bold: true });
+  return ws;
+}
+function xTransactions(wb, dept, rows, from, to, name = 'Account Transactions') {
+  const ws = wb.addWorksheet(name); xSetup(ws);
+  ws.columns = [{ width: 13 }, { width: 12 }, { width: 18 }, { width: 32 }, { width: 60 }, { width: 18 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 }];
+  xTitle(ws, 'Account Transactions', `${COMPANY} | For the period ${periodLong(from, to)} | ${dept}`, 10);
+  const hr = 4; xHeader(ws, hr, 1, ['Account Code', 'Date', 'Source', 'Contact', 'Description', 'Reference', 'Debit (AUD)', 'Credit (AUD)', 'Running Balance (AUD)', 'Departments'], ['left', 'left', 'left', 'left', 'left', 'left', 'right', 'right', 'right', 'left']);
+  ws.views = [{ state: 'frozen', ySplit: hr, showGridLines: false }];
+  let r = hr + 1; const totRows = [];
+  const groups = [...groupBy(rows, x => x.code + '|' + x.acct)].sort((p, q) => p[1][0].acct.localeCompare(q[1][0].acct));
+  for (const [, rs] of groups) {
+    ws.mergeCells(r, 1, r, 10); const h = ws.getCell(r, 1); h.value = rs[0].acct; h.font = { bold: true, size: 11, color: { argb: XC.navy } }; h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XC.band } }; r++;
+    const s = r; let run = 0;
+    rs.slice().sort((p, q) => p.date.localeCompare(q.date)).forEach(x => {
+      run += x.dr - x.cr; const [y, m, d] = x.date.split('-').map(Number);
+      xRow(ws, r, 1, [isNaN(+x.code) ? x.code : +x.code, new Date(Date.UTC(y, m - 1, d)), x.source, x.contact, x.desc, x.ref, x.dr, x.cr, { formula: r === s ? `G${r}-H${r}` : `I${r - 1}+G${r}-H${r}`, result: r2(run) }, x.dept], [null, 'dd/mm/yyyy', null, null, null, null, NUM, NUM, NUM, null], { wrap: true });
+      ws.getCell(r, 1).alignment = { horizontal: 'left', vertical: 'top' }; ws.getCell(r, 2).alignment = { horizontal: 'left', vertical: 'top' };
+      r++;
+    });
+    xRow(ws, r, 1, [`Total ${rs[0].acct}`, '', '', '', '', '', { formula: `SUM(G${s}:G${r - 1})`, result: sum(rs, x => x.dr) }, { formula: `SUM(H${s}:H${r - 1})`, result: sum(rs, x => x.cr) }, { formula: `I${r - 1}`, result: r2(run) }, ''], [null, null, null, null, null, null, NUM, NUM, NUM, null], { sub: true, bold: true });
+    totRows.push(r); r += 2;
+  }
+  xRow(ws, r, 1, ['Total', '', '', '', '', '', { formula: totRows.map(x => `G${x}`).join('+') || '0', result: sum(rows, x => x.dr) }, { formula: totRows.map(x => `H${x}`).join('+') || '0', result: sum(rows, x => x.cr) }, { formula: totRows.map(x => `I${x}`).join('+') || '0', result: netOf(rows) }, ''], [null, null, null, null, null, null, NUM, NUM, NUM, null], { total: true, bold: true });
+  return ws;
+}
+function xPlSummary(wb, a, sheetName) {
+  const ws = wb.addWorksheet(sheetName, { properties: { tabColor: { argb: XC.navy } } }); xSetup(ws);
+  const cat = CAT[a.dept]; const isSales = a.dept === 'Sales';
+  ws.columns = [{ width: 30 }, { width: 40 }, { width: 13 }, { width: 17 }, { width: 17 }, { width: 17 }];
+  xTitle(ws, `${isSales ? 'Sales' : 'Installation'} Income & Charges by Account Code`, `${COMPANY} | ${periodLong(a.from, a.to)} | AUD | ${quarterTitle(a.from, a.to)}`, 6);
+  xKpis(ws, 4, [
+    { label: 'Net ' + (isSales ? 'sales' : 'installation') + ' income', value: a.pl.income, span: [1, 1] },
+    { label: 'Net ' + (isSales ? 'sales' : 'installation') + ' charges', value: a.pl.charges, span: [2, 2] },
+    { label: 'Net result', value: a.pl.result, span: [3, 4] },
+    { label: cat.ratioLabel, value: a.ratio || 0, fmt: PCT, span: [5, 6], cap: isSales ? 'Net result ÷ net income' : 'Net income ÷ net charges' }
+  ]);
+  let r = 9;
+  const codeBlock = (list, isInc) => {
+    xSection(ws, r, 1, 6, isInc ? cat.incomeTitle.toUpperCase() : cat.chargeTitle.toUpperCase()); r++;
+    xHeader(ws, r, 1, [isInc ? 'Income code' : 'Charge code', 'Account name', 'Transactions', isInc ? 'Debits / returns' : 'Debits', isInc ? 'Credits' : 'Credits / offsets', isInc ? 'Net income' : 'Net charge'], ['left', 'left', 'right', 'right', 'right', 'right']); r++;
+    const s = r;
+    list.forEach((c, i) => { xRow(ws, r, 1, [isNaN(+c.code) ? c.code : +c.code, c.acct, c.n, c.dr, c.cr, { formula: isInc ? `E${r}-D${r}` : `D${r}-E${r}`, result: c.net }], [null, null, '#,##0', NUM, NUM, NUM], { band: i % 2 === 1 }); ws.getCell(r, 1).alignment = { horizontal: 'left' }; r++; });
+    xRow(ws, r, 1, [`Total ${isInc ? cat.incomeTitle.toLowerCase() : cat.chargeTitle.toLowerCase()}`, '', { formula: `SUM(C${s}:C${r - 1})`, result: sum(list, c => c.n) }, { formula: `SUM(D${s}:D${r - 1})`, result: sum(list, c => c.dr) }, { formula: `SUM(E${s}:E${r - 1})`, result: sum(list, c => c.cr) }, { formula: `SUM(F${s}:F${r - 1})`, result: sum(list, c => c.net) }], [null, null, '#,##0', NUM, NUM, NUM], { total: true, bold: true });
+    r += 2;
+  };
+  codeBlock(a.income, true); codeBlock(a.charges, false);
+  xSection(ws, r, 1, 6, 'RESULT BY CATEGORY'); r++;
+  xHeader(ws, r, 1, ['Category', '', 'Net income', 'Net charge', 'Net result', 'Margin %'], ['left', 'left', 'right', 'right', 'right', 'right']); r++;
+  const cs = r;
+  a.cats.forEach((c, i) => { ws.mergeCells(r, 1, r, 2); xRow(ws, r, 1, [c.name, '', c.income, c.charge, { formula: `C${r}-D${r}`, result: c.result }, c.margin == null ? '' : { formula: `IF(C${r}=0,"",E${r}/C${r})`, result: c.margin }], [null, null, NUM, NUM, NUM, PCT], { band: i % 2 === 1 }); r++; });
+  ws.mergeCells(r, 1, r, 2); xRow(ws, r, 1, ['Total', '', { formula: `SUM(C${cs}:C${r - 1})`, result: a.pl.income }, { formula: `SUM(D${cs}:D${r - 1})`, result: a.pl.charges }, { formula: `SUM(E${cs}:E${r - 1})`, result: a.pl.result }, { formula: `IF(C${r}=0,"",E${r}/C${r})`, result: a.pl.income ? a.pl.result / a.pl.income : 0 }], [null, null, NUM, NUM, NUM, PCT], { total: true, bold: true });
+  r += 2;
+  xSection(ws, r, 1, 6, 'PERFORMANCE INSIGHTS'); r++;
+  xHeader(ws, r, 1, ['Month', '', 'Net income', 'Net charges', 'Net result', ''], ['left', 'left', 'right', 'right', 'right', 'left']); r++;
+  const ms = r; const pm = (a.cmp || [a.to]).map(m => ({ m, ...plOf(a.dept, rowsFor(a.dept, m, m)) }));
+  pm.forEach((x, i) => { ws.mergeCells(r, 1, r, 2); xRow(ws, r, 1, [ymLabel(x.m, true), '', x.income, x.charges, { formula: `C${r}-D${r}`, result: x.result }], [null, null, NUM, NUM, NUM], { band: i % 2 === 1, bold: i === pm.length - 1 }); r++; });
+  if (pm.length === 2) {
+    const [p, c] = pm;
+    ws.mergeCells(r, 1, r, 2); xRow(ws, r, 1, ['Change', '', { formula: `C${ms + 1}-C${ms}`, result: r2(c.income - p.income) }, { formula: `D${ms + 1}-D${ms}`, result: r2(c.charges - p.charges) }, { formula: `E${ms + 1}-E${ms}`, result: r2(c.result - p.result) }], [null, null, NUM, NUM, NUM], { total: true, bold: true }); r++;
+  } else { ws.mergeCells(r, 1, r, 6); const c = ws.getCell(r, 1); c.value = `No ${ymLabel(addM(a.to, -1), true)} data loaded to compare against.`; c.font = { size: 9, italic: true, color: { argb: XC.grey } }; r++; }
+  r += 1;
+  r = xTakeaways(ws, r, 6, plTakeaways(a), commentaryList(a.dept, a.from, a.to));
+  ws.pageSetup.printArea = `A1:F${r}`;
+  return ws;
+}
+const SUMMARY_NAME = { 'Finance': 'Finance Summary', 'Executive': 'Executive Summary', 'General Management': 'Gen Management Summary', 'Marketing': 'Marketing Summary', 'Sales': 'Sales Summary', 'CS & Installation': 'Installation Summary' };
+function xOverview(wb, ms) {
+  const ws = wb.addWorksheet('Overview', { properties: { tabColor: { argb: XC.navy } } }); xSetup(ws);
+  const nM = ms.length, two = nM === 2; const last = 2 + nM + (two ? 1 : 0);
+  ws.columns = [{ width: 26 }, { width: 14 }, ...ms.map(() => ({ width: 16 })), ...(two ? [{ width: 16 }] : [])];
+  const cur = ms[nM - 1];
+  xTitle(ws, `${ymLabel(cur, true)} Cost Centre Overview`, `${COMPANY} | ${periodLong(cur, cur)} | AUD${two ? ' | compared with ' + ymLabel(ms[0], true) : ''}`, last);
+  ws.mergeCells(3, 1, 3, last); ws.getCell(3, 1).value = 'Net Spend = debits less credits. Net Result = net income less net charges.'; ws.getCell(3, 1).font = { size: 9, italic: true, color: { argb: XC.grey } };
+  let r = 5; xSection(ws, r, 1, last, two ? 'DEPARTMENT RESULTS — MONTH ON MONTH' : 'DEPARTMENT RESULTS'); r++;
+  const colL = i => String.fromCharCode(64 + i);
+  const hdr = () => { xHeader(ws, r, 1, ['Department', 'Measure', ...ms.map(m => ymLabel(m, true)), ...(two ? ['Change'] : [])], ['left', 'left', ...ms.map(() => 'right'), ...(two ? ['right'] : [])]); r++; };
+  const fm = [null, null, ...ms.map(() => NUM), ...(two ? [NUM] : [])];
+  const chg = (vals) => two ? [{ formula: `D${r}-C${r}`, result: r2(vals[1] - vals[0]) }] : [];
+  hdr(); const s0 = r;
+  SPEND_DEPTS.forEach((d, i) => { const v = ms.map(m => netOf(rowsFor(d, m, m))); xRow(ws, r, 1, [d, 'Net Spend', ...v, ...chg(v)], fm, { band: i % 2 === 1 }); r++; });
+  const tv = ms.map(m => sum(SPEND_DEPTS, d => netOf(rowsFor(d, m, m))));
+  xRow(ws, r, 1, ['Total Operating Spend', '', ...ms.map((m, j) => ({ formula: `SUM(${colL(3 + j)}${s0}:${colL(3 + j)}${r - 1})`, result: tv[j] })), ...chg(tv)], fm, { total: true, bold: true }); r += 2;
+  hdr(); let band = 0;
+  for (const d of ['Sales', 'CS & Installation']) for (const [k, lab] of [['income', 'Net Income'], ['charges', 'Net Charges'], ['result', 'Net Result']]) {
+    const v = ms.map(m => plOf(d, rowsFor(d, m, m))[k]);
+    xRow(ws, r, 1, [d, lab, ...v, ...chg(v)], fm, k === 'result' ? { sub: true, bold: true } : { band: band++ % 2 === 1 }); r++;
+  }
+  return ws;
+}
+/* Excel export is always monthly: the selected "To" month compared with the month before it. */
+function buildExport(wb, dept) {
+  const cur = S.to, prev = addM(cur, -1);
+  const cmpFor = d => hasData(d, prev, prev) ? [prev, cur] : [cur];
+  const one = d => {
+    if (PL_DEPTS.has(d)) { const a = plAnalysis(d, cur, cur); a.cmp = cmpFor(d); xPlSummary(wb, a, SUMMARY_NAME[d]); return a; }
+    const a = spendAnalysis(d, cur, cur); a.cmp = cmpFor(d); xSpendSummary(wb, a, SUMMARY_NAME[d]); return a;
+  };
+  if (dept) {
+    one(dept);
+    xTransactions(wb, dept, rowsFor(dept, cur, cur), cur, cur);
+    return `Cost Centre Analysis - ${DEPT_SHORT[dept]} - ${ymLabel(cur, true)}.xlsx`;
+  }
+  xOverview(wb, DEPTS.some(d => hasData(d, prev, prev)) ? [prev, cur] : [cur]);
+  for (const d of DEPTS) if (hasData(d, cur, cur)) one(d);
+  return `Cost Centre Report - All Departments - ${ymLabel(cur, true)}.xlsx`;
+}
+async function exportExcel() {
+  const btn = $('#exportBtn'); btn.disabled = true; const old = btn.textContent; btn.textContent = 'Building…';
+  try {
+    const wb = new ExcelJS.Workbook(); wb.creator = 'DDL Cost Centre Dashboard'; wb.created = new Date();
+    const dept = S.view === 'dept' ? S.dept : (S.view === 'tx' && S.txDept !== 'ALL' ? S.txDept : null);
+    if (dept && !hasData(dept, S.to, S.to)) { alert(`No ${dept} data loaded for ${ymLabel(S.to, true)}.`); return; }
+    const fname = buildExport(wb, dept);
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob); const aEl = document.createElement('a'); aEl.href = url; aEl.download = fname; document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { console.error(e); alert('Export failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+window.__exportBuffer = async (mode, dept) => { // test hook
+  const wb = new ExcelJS.Workbook(); buildExport(wb, mode === 'all' ? null : dept);
+  const b = await wb.xlsx.writeBuffer(); return btoa(new Uint8Array(b).reduce((s, x) => s + String.fromCharCode(x), ''));
+};
+
+/* ============================== WIRING ============================== */
+function syncSel() { $('#fromSel').value = S.from; $('#toSel').value = S.to; }
+$('#fromSel').onchange = e => { S.from = e.target.value; if (S.from > S.to) S.to = S.from; syncSel(); S.open.clear(); render(); };
+$('#toSel').onchange = e => { S.to = e.target.value; if (S.from > S.to) S.from = S.to; syncSel(); S.open.clear(); render(); };
+document.querySelectorAll('#presetSeg button').forEach(b => b.onclick = () => { const [f, t] = presetRange(b.dataset.p); if (!f) return; S.from = f; S.to = t; syncSel(); S.open.clear(); render(); });
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { S.view = b.dataset.v; if (S.view === 'tx' && S.txDept === 'ALL' && false) S.txDept = S.dept; render(); });
+$('#exportBtn').onclick = exportExcel;
+$('#themeBtn').onclick = () => {
+  const root = document.documentElement; const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark'; try { localStorage.setItem('cc-theme', root.dataset.theme); } catch (e) { } render();
+};
+try { const t = localStorage.getItem('cc-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { }
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 200); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show')); });
+if (!location.search.includes('demo')) loadLive(); else setBadge('', 'Waiting for Demo Data');
+</script>
+</body>
+</html>
