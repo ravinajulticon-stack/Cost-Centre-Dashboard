@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{
   color-scheme:light;
@@ -165,7 +166,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
   </nav>
 
   <main id="main"></main>
-  <div class="foot">Source: Xero Account Transactions by department (Jul–Sep 2026 from the approved reports). Net Spend = debits less credits. Income departments (Sales, CS &amp; Installation) show Net Income less Net Charges.</div>
+  <div class="foot">Source: Xero Account Transactions (raw monthly export), split by department. Net Spend = debits less credits. Income departments (Sales, CS &amp; Installation) show Net Income less Net Charges.</div>
 </div>
 
 <div class="tip" id="tip"></div>
@@ -346,7 +347,7 @@ function ingest(rows, notes, commentary, keepPeriod) {
   ROWS = rows; setNotes(notes || []);
   COMMENTARY = new Map((commentary || []).map(c => [c.dept + '|' + c.period, c.note]));
   MONTHS = [...new Set(ROWS.map(r => r.period))].sort();
-  if (!MONTHS.length) { renderGate('No months loaded yet. Use “Upload Month” to add the first approved reports.'); fillMonthSelects(); updateFresh(); return; }
+  if (!MONTHS.length) { renderGate('No months loaded yet. Use “Upload Month” to add the first Xero monthly export.'); fillMonthSelects(); updateFresh(); return; }
   if (!keepPeriod || !S.to || !MONTHS.includes(S.to)) { S.to = MONTHS[MONTHS.length - 1]; S.from = S.to; }
   if (!MONTHS.includes(S.from) || S.from > S.to) S.from = S.to;
   fillMonthSelects(); updateFresh(); render();
@@ -1094,21 +1095,18 @@ function xOverview(wb, ms) {
   }
   return ws;
 }
-/* Excel export is always monthly: the selected "To" month compared with the month before it. */
+/* Excel export is always monthly: the selected "To" month compared with the month before it,
+   laid out exactly like Phil's approved workbooks (see phil.js). */
 function buildExport(wb, dept) {
   const cur = S.to, prev = addM(cur, -1);
-  const cmpFor = d => hasData(d, prev, prev) ? [prev, cur] : [cur];
-  const one = d => {
-    if (PL_DEPTS.has(d)) { const a = plAnalysis(d, cur, cur); a.cmp = cmpFor(d); xPlSummary(wb, a, SUMMARY_NAME[d]); return a; }
-    const a = spendAnalysis(d, cur, cur); a.cmp = cmpFor(d); xSpendSummary(wb, a, SUMMARY_NAME[d]); return a;
-  };
+  const pv = d => hasData(d, prev, prev) ? prev : null;
   if (dept) {
-    one(dept);
-    xTransactions(wb, dept, rowsFor(dept, cur, cur), cur, cur);
+    PHIL.summary(wb, dept, cur, pv(dept));
+    PHIL.transactions(wb, dept, pv(dept) ? [prev, cur] : [cur]);
     return `Cost Centre Analysis - ${DEPT_SHORT[dept]} - ${ymLabel(cur, true)}.xlsx`;
   }
   xOverview(wb, DEPTS.some(d => hasData(d, prev, prev)) ? [prev, cur] : [cur]);
-  for (const d of DEPTS) if (hasData(d, cur, cur)) one(d);
+  for (const d of DEPTS) if (hasData(d, cur, cur)) PHIL.summary(wb, d, cur, pv(d));
   return `Cost Centre Report - All Departments - ${ymLabel(cur, true)}.xlsx`;
 }
 async function exportExcel() {
@@ -1118,7 +1116,7 @@ async function exportExcel() {
     const dept = S.view === 'dept' ? S.dept : (S.view === 'tx' && S.txDept !== 'ALL' ? S.txDept : null);
     if (dept && !hasData(dept, S.to, S.to)) { alert(`No ${dept} data loaded for ${ymLabel(S.to, true)}.`); return; }
     const fname = buildExport(wb, dept);
-    const buf = await wb.xlsx.writeBuffer();
+    const buf = await PHIL.injectCharts(await wb.xlsx.writeBuffer(), wb);
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob); const aEl = document.createElement('a'); aEl.href = url; aEl.download = fname; document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
   } catch (e) { console.error(e); alert('Export failed: ' + e.message); }
@@ -1126,7 +1124,8 @@ async function exportExcel() {
 }
 window.__exportBuffer = async (mode, dept) => { // test hook
   const wb = new ExcelJS.Workbook(); buildExport(wb, mode === 'all' ? null : dept);
-  const b = await wb.xlsx.writeBuffer(); return btoa(new Uint8Array(b).reduce((s, x) => s + String.fromCharCode(x), ''));
+  const b = new Uint8Array(await PHIL.injectCharts(await wb.xlsx.writeBuffer(), wb));
+  let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return btoa(s);
 };
 
 /* ============================== WIRING ============================== */
@@ -1145,5 +1144,6 @@ let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(ren
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show')); });
 if (!location.search.includes('demo')) loadLive(); else setBadge('', 'Waiting for Demo Data');
 </script>
+<script src="phil.js"></script>
 </body>
 </html>
