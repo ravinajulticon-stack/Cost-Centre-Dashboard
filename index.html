@@ -1113,8 +1113,14 @@ function buildExport(wb, dept) {
   const cur = S.to, prev = addM(cur, -1);
   const pv = d => hasData(d, prev, prev) ? prev : null;
   if (dept) {
-    PHIL.summary(wb, dept, cur, pv(dept));
-    PHIL.transactions(wb, dept, pv(dept) ? [prev, cur] : [cur]);
+    // Current month first, then the prior month's own Summary + Transactions so Phil can compare sheet by sheet
+    const tag = m => `${MON[+m.slice(5) - 1]} ${m.slice(2, 4)}`;
+    const both = pv(dept) ? [cur, prev] : [cur];
+    for (const [i, m] of both.entries()) {
+      const p = addM(m, -1), tab = i ? 'FF7F8C99' : null;
+      PHIL.summary(wb, dept, m, hasData(dept, p, p) ? p : null, `${SUMMARY_NAME[dept]} - ${tag(m)}`, tab);
+      PHIL.transactions(wb, dept, [m], `Account Transactions - ${tag(m)}`, tab);
+    }
     return `Cost Centre Analysis - ${DEPT_SHORT[dept]} - ${ymLabel(cur, true)}.xlsx`;
   }
   xOverview(wb, DEPTS.some(d => hasData(d, prev, prev)) ? [prev, cur] : [cur]);
@@ -1168,6 +1174,6 @@ let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(ren
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show')); });
 if (!location.search.includes('demo')) loadLive(); else setBadge('', 'Waiting for Demo Data');
 </script>
-<script src="phil.js?v=20261109b"></script>
+<script src="phil.js?v=20261109c"></script>
 </body>
 </html>

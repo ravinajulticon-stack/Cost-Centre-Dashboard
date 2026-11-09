@@ -106,7 +106,7 @@ const PHIL = (() => {
 
   /* ---------- writing ---------- */
   function render(wb, m, name, opts = {}) {
-    const ws = wb.addWorksheet(name, { properties: { tabColor: { argb: m.dept === 'Executive' ? 'FF0B2A4A' : 'FF002060' } }, views: [{ showGridLines: m.grid !== false, ...(opts.freeze ? { state: 'frozen', ySplit: opts.freeze } : {}) }] });
+    const ws = wb.addWorksheet(name, { properties: { tabColor: { argb: TAB || (m.dept === 'Executive' ? 'FF0B2A4A' : 'FF002060') } }, views: [{ showGridLines: m.grid !== false, ...(opts.freeze ? { state: 'frozen', ySplit: opts.freeze } : {}) }] });
     for (const [l, w] of Object.entries(m.cols)) ws.getColumn(N(l)).width = w;
     for (const [r, h] of m.rows) ws.getRow(r).height = h;
     for (const [k, v] of m.cells) {
@@ -204,7 +204,7 @@ const PHIL = (() => {
     const accts = d.accts.slice().sort((a, b) => a.acct.localeCompare(b.acct));
     region(m, { start: 19, end: 33, n: Math.max(accts.length, 15), full: false, c1: 1, c2: 4 });
     const note = comm(dept, cur);
-    const ws = render(wb, m, SUMMARY_NAME[dept], { landscape: true });
+    const ws = render(wb, m, SHEET_NAME || SUMMARY_NAME[dept], { landscape: true });
     V(ws, 'A1', `${monthLong(cur)} Finance Spend Insights`);
     V(ws, 'A2', `${COMPANY} | ${rangeText(cur)} | AUD`);
     V(ws, 'A5', d.net); V(ws, 'A7', 'Month net outflow');
@@ -241,7 +241,7 @@ const PHIL = (() => {
     const note = comm(dept, cur);
     let noteRow = null;
     if (note) noteRow = appendNote(m, maxRow(m) + 2, m.cells.get(key(9, 1)).s, m.cells.get(key(10, 1)).s, 1, 10);
-    const ws = render(wb, m, SUMMARY_NAME[dept]);
+    const ws = render(wb, m, SHEET_NAME || SUMMARY_NAME[dept]);
     V(ws, 'A1', `Expense Insights | ${monthLong(cur)}`);
     V(ws, 'A2', 'Executive view of net spend, key drivers and concentration | AUD | Net = debit less credit');
     V(ws, 'A5', d.net);
@@ -305,7 +305,7 @@ const PHIL = (() => {
     region(m, { start: 17, end: 26, n: accts.length, total: 27, full: false, c1: 1, c2: 4 });
     const note = comm(dept, cur); let noteRow = null;
     if (note) noteRow = appendNote(m, maxRow(m) + 2, m.cells.get(key(8, 1)).s, m.cells.get(key(10, 1)).s, 1, 9);
-    const ws = render(wb, m, SUMMARY_NAME[dept]);
+    const ws = render(wb, m, SHEET_NAME || SUMMARY_NAME[dept]);
     V(ws, 'A1', `${monthLong(cur)} Marketing Spend Insights`);
     V(ws, 'A2', `${COMPANY} | 1–${lastDay(cur)} ${mName(cur)} ${yOf(cur)} | AUD | Excludes foreign exchange`);
     V(ws, 'A5', d.net); V(ws, 'A6', 'Month net outflow');
@@ -337,7 +337,7 @@ const PHIL = (() => {
     band(m, R(m, 18), nA, 18, 19, 1, 4, 50);
     const note = comm(dept, cur); let noteRow = null;
     if (note) noteRow = appendNote(m, maxRow(m) + 2, m.cells.get(key(8, 1)).s, m.cells.get(key(10, 1)).s, 1, 8);
-    const ws = render(wb, m, SUMMARY_NAME[dept]);
+    const ws = render(wb, m, SHEET_NAME || SUMMARY_NAME[dept]);
     V(ws, 'A1', `${monthLong(cur)} General Management Spend Insights`);
     V(ws, 'A3', `${COMPANY} | ${rangeText(cur)} | AUD`);
     V(ws, 'A5', d.net);
@@ -393,7 +393,7 @@ const PHIL = (() => {
     region(m, { start: L0.cat[0], end: L0.cat[1], n: d.cats.length, full: true });
     region(m, { start: L0.chg[0], end: L0.chg[1], n: d.charges.length, full: true });
     region(m, { start: L0.inc[0], end: L0.inc[1], n: d.income.length, full: true });
-    const ws = render(wb, m, SUMMARY_NAME[dept]);
+    const ws = render(wb, m, SHEET_NAME || SUMMARY_NAME[dept]);
     V(ws, 'A1', isS ? 'Sales Income & Charges by Account Code' : 'Installation Income & Charges by Account Code');
     V(ws, 'A2', `${COMPANY} | ${rangeText2(cur)}`);
     try { ws.mergeCells('C5:D5'); } catch (e) { }
@@ -442,10 +442,10 @@ const PHIL = (() => {
   }
 
   /* ======================= ACCOUNT TRANSACTIONS ======================= */
-  function transactions(wb, dept, months) {
+  function transactions(wb, dept, months, name = 'Account Transactions', tab = null) {
     const m = model(dept, 'tx'), t = T.depts[dept].tx, mp = t.map;
     const rows = months.flatMap(x => rowsFor(dept, x, x));
-    const ws = wb.addWorksheet('Account Transactions', { views: [{ state: 'frozen', ySplit: 5, showGridLines: false }] });
+    const ws = wb.addWorksheet(name, { ...(tab ? { properties: { tabColor: { argb: tab } } } : {}), views: [{ state: 'frozen', ySplit: 5, showGridLines: false }] });
     for (const [l, w] of Object.entries(t.cols)) ws.getColumn(N(l)).width = w;
     const st = (r, c) => { const v = t.cells[L(c) + r]; return v ? clone(T.styles[v.s]) : null; };
     const H = r => t.rows[r];
@@ -613,7 +613,8 @@ const PHIL = (() => {
     return `Raw Data - By Cost Centre - ${from === to ? monthLong(to) : `${mShort(from)} to ${mShort(to)} ${yOf(to)}`}.xlsx`;
   }
 
+  let SHEET_NAME = null, TAB = null;
   const BUILDERS = { 'Finance': finance, 'Executive': executive, 'Marketing': marketing, 'General Management': genmgt,
     'Sales': (wb, c, p) => plSheet(wb, 'Sales', c, p), 'CS & Installation': (wb, c, p) => plSheet(wb, 'CS & Installation', c, p) };
-  return { summary: (wb, dept, cur, prev) => BUILDERS[dept](wb, cur, prev), transactions, injectCharts, rawData };
+  return { summary: (wb, dept, cur, prev, name = null, tab = null) => { SHEET_NAME = name; TAB = tab; try { return BUILDERS[dept](wb, cur, prev); } finally { SHEET_NAME = null; TAB = null; } }, transactions, injectCharts, rawData };
 })();
