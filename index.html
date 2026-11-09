@@ -156,6 +156,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
     </div>
     <div class="spacer"></div>
     <button class="btn" id="uploadBtn">Upload Month</button>
+    <button class="btn" id="rawBtn" title="Exports the raw Xero transactions for the selected From–To range, one sheet per cost centre">Export Raw Data</button>
     <button class="btn primary" id="exportBtn" title="Exports the selected To month compared with the month before">Export to Excel</button>
   </div>
 
@@ -1146,6 +1147,18 @@ $('#toSel').onchange = e => { S.to = e.target.value; if (S.from > S.to) S.from =
 document.querySelectorAll('#presetSeg button').forEach(b => b.onclick = () => { const [f, t] = presetRange(b.dataset.p); if (!f) return; S.from = f; S.to = t; syncSel(); S.open.clear(); render(); });
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { S.view = b.dataset.v; if (S.view === 'tx' && S.txDept === 'ALL' && false) S.txDept = S.dept; render(); });
 $('#exportBtn').onclick = exportExcel;
+$('#rawBtn').onclick = async () => {
+  const btn = $('#rawBtn'); btn.disabled = true; const old = btn.textContent; btn.textContent = 'Building…';
+  try {
+    const wb = new ExcelJS.Workbook(); wb.creator = 'DDL Cost Centre Dashboard'; wb.created = new Date();
+    const fname = PHIL.rawData(wb, S.from, S.to);
+    const buf = await PHIL.injectCharts(await wb.xlsx.writeBuffer(), wb);
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const aEl = document.createElement('a'); aEl.href = url; aEl.download = fname; document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { console.error(e); alert('Export failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+};
+window.__rawBuffer = async (from, to) => { const wb = new ExcelJS.Workbook(); PHIL.rawData(wb, from, to); const b = new Uint8Array(await PHIL.injectCharts(await wb.xlsx.writeBuffer(), wb)); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return btoa(s); };
 $('#themeBtn').onclick = () => {
   const root = document.documentElement; const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   root.dataset.theme = dark ? 'light' : 'dark'; try { localStorage.setItem('cc-theme', root.dataset.theme); } catch (e) { } render();

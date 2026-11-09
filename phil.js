@@ -542,7 +542,78 @@ const PHIL = (() => {
     return zip.generateAsync({ type: typeof window !== 'undefined' && window.Blob ? 'arraybuffer' : 'nodebuffer', compression: 'DEFLATE' });
   }
 
+  /* ======================= RAW DATA (Xero layout, one sheet per cost centre) ======================= */
+  const RAW_SHEET = { 'Finance': 'Account Transactions - Finance', 'Executive': 'Account Transactions - Exe', 'General Management': 'Account Transactions - Gen Mgt',
+    'Marketing': 'Account Transactions-Marketing', 'Sales': 'Account Transactions - Sales', 'CS & Installation': 'Account Transactions - CS' };
+  const AR = (o = {}) => ({ name: 'Arial', size: 9, ...o });
+  const RAW_NUM = '#,##0.00;\\(#,##0.00\\)';
+  const periodText = (from, to) => `For the period 1 ${mName(from)} ${yOf(from)} to ${lastDay(to)} ${mName(to)} ${yOf(to)}`;
+  function rawSheet(wb, dept, from, to) {
+    const rows = rowsFor(dept, from, to);
+    const ws = wb.addWorksheet(RAW_SHEET[dept], { properties: { tabColor: { argb: 'FF002060' } }, views: [{ state: 'frozen', ySplit: 8, showGridLines: false }] });
+    [14, 18, 32, 60, 22, 14, 14, 20, 14, 20].forEach((w, i) => ws.getColumn(i + 1).width = w);
+    const t = (r, v, f) => { const c = ws.getCell(r, 1); c.value = v; c.font = f; };
+    t(1, 'Account Transactions', AR({ size: 14, bold: true })); t(2, COMPANY, AR({ size: 12 })); t(3, periodText(from, to), AR({ size: 12 }));
+    t(5, `Departments is ${dept}.`, AR()); t(6, 'Account Type contains Expense, Revenue', AR());
+    const hdr = ['Date', 'Source', 'Contact', 'Description', 'Reference', 'Debit (AUD)', 'Credit (AUD)', 'Running Balance (AUD)', 'Account Code', 'Departments'];
+    hdr.forEach((h, i) => { const c = ws.getCell(8, i + 1); c.value = h; c.font = AR({ size: 10, bold: true }); c.border = { bottom: { style: 'thin' } }; if (i >= 5 && i <= 7) c.alignment = { horizontal: 'right' }; });
+    let r = 10; const subs = [];
+    const groups = [...groupBy(rows, x => x.code + '|' + x.acct)].sort((p, q) => p[1][0].acct.localeCompare(q[1][0].acct));
+    for (const [, rs] of groups) {
+      const inc = isIncome(dept, rs[0].code);
+      const name = `${rs[0].acct}${PL_DEPTS.has(dept) ? ` [${rs[0].code}]` : ''}`;
+      t(r, name, AR({ size: 10, bold: true })); r++;
+      const s = r; let run = 0;
+      rs.slice().sort((p, q) => p.date.localeCompare(q.date) || 0).forEach((x, i) => {
+        run = r2(run + (inc ? x.cr - x.dr : x.dr - x.cr)); const [y, mo, dd] = x.date.split('-').map(Number);
+        const mv = inc ? `(G${r} - F${r})` : `(F${r} - G${r})`;
+        const vals = [new Date(Date.UTC(y, mo - 1, dd)), x.source, x.contact, x.desc, x.ref, x.dr, x.cr, { formula: i ? `((H${r - 1} + ${inc ? `G${r}) - F${r}` : `F${r}) - G${r}`})` : mv, result: run }, String(x.code), x.dept];
+        vals.forEach((v, k) => { const c = ws.getCell(r, k + 1); c.value = v; c.font = AR(); if (k === 0) c.numFmt = 'dd\\ mmm\\ yyyy'; if (k >= 5 && k <= 7) c.numFmt = RAW_NUM; });
+        r++;
+      });
+      const tr = [`Total ${name}`, null, null, null, null, { formula: `SUM(F${s}:F${r - 1})`, result: r2(sum(rs, x => x.dr)) }, { formula: `SUM(G${s}:G${r - 1})`, result: r2(sum(rs, x => x.cr)) }, { formula: `H${r - 1}`, result: run }];
+      tr.forEach((v, k) => { const c = ws.getCell(r, k + 1); if (v !== null) c.value = v; c.font = AR({ bold: true }); if (k >= 5) c.numFmt = RAW_NUM; c.border = { top: { style: 'thin' } }; });
+      subs.push(r); r += 2;
+    }
+    const net = PL_DEPTS.has(dept) ? plOf(dept, rows).result : netOf(rows);
+    const gt = ['Total', null, null, null, null, { formula: `SUM(${subs.map(x => 'F' + x).join(',') || 0})`, result: r2(sum(rows, x => x.dr)) }, { formula: `SUM(${subs.map(x => 'G' + x).join(',') || 0})`, result: r2(sum(rows, x => x.cr)) }];
+    gt.forEach((v, k) => { const c = ws.getCell(r, k + 1); if (v !== null) c.value = v; c.font = AR({ bold: true }); if (k >= 5) c.numFmt = RAW_NUM; c.border = { top: { style: 'thin' }, bottom: { style: 'double' } }; });
+    return { ws, rows: rows.length, dr: r2(sum(rows, x => x.dr)), cr: r2(sum(rows, x => x.cr)), net };
+  }
+  function rawData(wb, from, to) {
+    const ms = monthsBetween(from, to);
+    const ov = wb.addWorksheet('Overview', { properties: { tabColor: { argb: 'FF16324F' } }, views: [{ showGridLines: false }] });
+    const info = DEPTS.filter(d => hasData(d, from, to)).map(d => ({ d, ...rawSheet(wb, d, from, to) }));
+    const navy = 'FF16324F', teal = 'FF176B6B', band = 'FFEAF2F4', ink = 'FF26343D';
+    const multi = ms.length > 1, cols = 5 + ms.length - (multi ? 0 : 1);
+    [30, 34, 14, 16, 16, ...ms.map(() => 16), 16].forEach((w, i) => ov.getColumn(i + 1).width = w);
+    ov.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const fill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+    ov.mergeCells(1, 1, 1, cols + 1); Object.assign(ov.getCell(1, 1), { value: 'Raw Data – By Cost Centre', font: { name: 'Aptos', size: 20, bold: true, color: { argb: 'FFFFFFFF' } }, fill: fill(navy), alignment: { vertical: 'middle' } });
+    ov.mergeCells(2, 1, 2, cols + 1); Object.assign(ov.getCell(2, 1), { value: `${COMPANY} | ${periodText(from, to).replace('For the period ', '')} | AUD | Xero Account Transactions by department`, font: { name: 'Aptos', size: 10, color: { argb: 'FFDCE8F2' } }, fill: fill(navy), alignment: { vertical: 'middle' } });
+    ov.getRow(1).height = 38; ov.getRow(2).height = 22;
+    const hdr = ['Department', 'Sheet', 'Transactions', 'Debit (AUD)', 'Credit (AUD)', ...ms.map(m => `Net ${mShort(m)} ${yOf(m)}`), ...(multi ? ['Net Total'] : [])];
+    hdr.forEach((h, i) => Object.assign(ov.getCell(4, i + 1), { value: h, font: { name: 'Aptos', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }, fill: fill(teal), alignment: { horizontal: i >= 2 ? 'center' : 'left', vertical: 'middle' } }));
+    ov.getRow(4).height = 21.75;
+    let r = 5;
+    const NUMF = '"$"#,##0.00;[Red]-"$"#,##0.00;"-"';
+    for (const x of info) {
+      const net = m => { const rs = rowsFor(x.d, m, m); return PL_DEPTS.has(x.d) ? plOf(x.d, rs).result : netOf(rs); };
+      const vals = [x.d + (PL_DEPTS.has(x.d) ? ' (net result)' : ''), { text: x.ws.name, hyperlink: `#'${x.ws.name}'!A1` }, x.rows, x.dr, x.cr, ...ms.map(net), ...(multi ? [r2(sum(ms, net))] : [])];
+      vals.forEach((v, i) => { const c = ov.getCell(r, i + 1); c.value = v; c.font = { name: 'Aptos', size: 10, color: { argb: i === 1 ? 'FF1F6F8B' : ink }, underline: i === 1 }; c.fill = fill(r % 2 ? 'FFFFFFFF' : band); if (i >= 3) c.numFmt = NUMF; if (i === 2) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'center' }; } });
+      r++;
+    }
+    const tot = ['Total', '', { formula: `SUM(C5:C${r - 1})`, result: sum(info, x => x.rows) }, { formula: `SUM(D5:D${r - 1})`, result: r2(sum(info, x => x.dr)) }, { formula: `SUM(E5:E${r - 1})`, result: r2(sum(info, x => x.cr)) }];
+    tot.forEach((v, i) => { const c = ov.getCell(r, i + 1); c.value = v; c.font = { name: 'Aptos', size: 10, bold: true, color: { argb: navy } }; c.fill = fill('FFDCE8EF'); c.border = { top: { style: 'thin' } }; if (i >= 3) c.numFmt = NUMF; if (i === 2) { c.numFmt = '#,##0'; c.alignment = { horizontal: 'center' }; } });
+    for (let i = 6; i <= cols + 1; i++) { const c = ov.getCell(r, i); c.fill = fill('FFDCE8EF'); c.border = { top: { style: 'thin' } }; }
+    r += 2;
+    const note = ov.getCell(r, 1); ov.mergeCells(r, 1, r, cols + 1);
+    note.value = 'Net = debits less credits for spend departments; net income less net charges for Sales and CS & Installation. Foreign exchange (account 499) and rows with no department are excluded, as in the dashboard.';
+    note.font = { name: 'Aptos', size: 9, italic: true, color: { argb: 'FF5D6D77' } }; note.alignment = { wrapText: true, vertical: 'top' }; ov.getRow(r).height = 26;
+    return `Raw Data - By Cost Centre - ${from === to ? monthLong(to) : `${mShort(from)} to ${mShort(to)} ${yOf(to)}`}.xlsx`;
+  }
+
   const BUILDERS = { 'Finance': finance, 'Executive': executive, 'Marketing': marketing, 'General Management': genmgt,
     'Sales': (wb, c, p) => plSheet(wb, 'Sales', c, p), 'CS & Installation': (wb, c, p) => plSheet(wb, 'CS & Installation', c, p) };
-  return { summary: (wb, dept, cur, prev) => BUILDERS[dept](wb, cur, prev), transactions, injectCharts };
+  return { summary: (wb, dept, cur, prev) => BUILDERS[dept](wb, cur, prev), transactions, injectCharts, rawData };
 })();
