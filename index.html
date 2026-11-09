@@ -804,13 +804,24 @@ async function parseWorkbook(file) {
 /* Raw Xero exports have no Contact column: Xero writes "Contact - line description" into Description.
    Order: (1) same description seen before in this department, (2) longest known contact the description starts with,
    (3) allocation journals naming a known contact, (4) text before the first " - ", (5) the whole description. */
+/* Allocation journals have no Xero contact: map them to the supplier being allocated */
+const ALLOC_RULES = [[/^Adjutsment: Shopify and ServiceM8 Clearing/i, 'Shopify - mysmartlocks-com-au'], [/^FY2026 Adjustment/i, 'Shopify - mysmartlocks-com-au'], [/Allocate Shopify Pending Balance/i, 'Shopify - mysmartlocks-com-au'],
+  [/Allocate AOC /i, 'Australian Olympic Committee (AOC)'], [/The AV Dept/i, 'Australian Olympic Committee (AOC)'], [/Allocate ASM /i, 'ASM Partners'], [/Clever Bridge/i, 'Clever Bridge'], [/Echo Cartons/i, 'Echo Cartons'],
+  [/JP Ahuja (&|Sons)|JP Ahuja Sons|INV-0001[89] JP Ahuja/i, 'JP Ahuja & Sons Pty Ltd'], [/JP Ahuja Council Rate \(0009\)/i, 'JP Ahuja Council Rate'], [/Intercom/i, 'Intercom R&D Unlimited Company'],
+  [/Hubspot/i, 'HubSpot Australia Pty Ltd'], [/Work Club Australia/i, 'Work Club Australia'], [/Ignite Purpose/i, 'Ignite Purpose Pty Ltd'], [/LastPass/i, 'Lastpass.com'], [/Phonely/i, 'Phonely, Inc'],
+  [/SPS Commerce/i, 'SPS Commerce'], [/Shunnade/i, 'H&C PRINTING CENTER'], [/Monday\.com/i, 'MONDAY.COM'], [/TeamViewer/i, 'TeamViewer']];
+function ruleContact(r) {
+  if (/JP Ajuha \(0010\)/i.test(r.desc)) return r.code === '64150' ? 'JP Ahuja Council Insurance' : 'JP Ahuja Council Rate';
+  const m = ALLOC_RULES.find(([re]) => re.test(r.desc)); return m ? m[1] : null;
+}
 function deriveContacts(rows) {
+  for (const r of rows) if (r.cflag !== 'given') { const c = ruleContact(r); if (c) { r.contact = c; r.cflag = 'rule'; } }
   const hist = [...ROWS, ...rows.filter(r => r.cflag === 'given')];
   const exact = new Map(); for (const r of hist) if (r.contact) exact.set(r.dept + '|' + r.desc.toLowerCase(), r.contact);
   const known = [...new Set(hist.map(r => (r.contact || '').trim()).filter(Boolean))].sort((a, b) => b.length - a.length);
   const knownLc = known.map(k => [k, k.toLowerCase().replace(/\.$/, '')]);
   for (const r of rows) {
-    if (r.cflag === 'given') continue;
+    if (r.cflag === 'given' || r.cflag === 'rule') continue;
     const d = r.desc.trim(), dl = d.toLowerCase();
     let c = exact.get(r.dept + '|' + dl), how = 'exact';
     if (!c) { const k = knownLc.find(([, kl]) => dl === kl || dl.startsWith(kl + ' - ') || dl.startsWith(kl + '. - ')); if (k) { c = k[0]; how = 'known'; } }
