@@ -767,6 +767,7 @@ async function parseWorkbook(file) {
       if (vals.includes('date') && vals.includes('debit (aud)') && vals.includes('account code')) { hdr = rn; vals.forEach((v, i) => { if (v && !col[v]) col[v] = i; }); }
     }
     if (!hdr) continue;
+    if (col['credit (aud)'] == null) throw new Error(`${file.name}: this export has no "Credit (AUD)" column, so credits (sales income, refunds, reversals) would be lost. Re-export the Xero Account Transactions report with the columns Date, Source, Contact, Description, Reference, Debit (AUD), Credit (AUD), Running Balance (AUD), Account Code and Departments.`);
     const kind = col['contact'] ? 'approved' : 'raw'; kinds.add(kind);
     const sheetDept = deptFromName(ws.name);
     let acct = null;
