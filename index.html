@@ -812,7 +812,8 @@ const ALLOC_RULES = [[/^Adjutsment: Shopify and ServiceM8 Clearing/i, 'Shopify -
   [/JP Ahuja (&|Sons)|JP Ahuja Sons|INV-0001[89] JP Ahuja/i, 'JP Ahuja & Sons Pty Ltd'], [/JP Ahuja Council Rate \(0009\)/i, 'JP Ahuja Council Rate'], [/Intercom/i, 'Intercom R&D Unlimited Company'],
   [/Hubspot/i, 'HubSpot Australia Pty Ltd'], [/Work Club Australia/i, 'Work Club Australia'], [/Ignite Purpose/i, 'Ignite Purpose Pty Ltd'], [/LastPass/i, 'Lastpass.com'], [/Phonely/i, 'Phonely, Inc'],
   [/SPS Commerce/i, 'SPS Commerce'], [/Shunnade/i, 'H&C PRINTING CENTER'], [/Monday\.com/i, 'MONDAY.COM'], [/TeamViewer/i, 'TeamViewer'],
-  [/Accounts Payable Original to Bad Debts - Icon Co/i, 'Icon Co'], [/Accounts Payable Original to Other Sales Income/i, 'Accounts Payable Write-back'], [/Plaude? LLC/i, 'Plaude LLC']];
+  [/Accounts Payable Original to Bad Debts - Icon Co/i, 'Icon Co'], [/Accounts Payable Original to Other Sales Income/i, 'Accounts Payable Write-back'], [/Plaude? LLC/i, 'Plaude LLC'],
+  [/Allocate Bunnings Markdown Assistance/i, 'Bunnings Hardware - Australia'], [/Amorti[sz]e Product Display\/Exhibition Stand/i, 'Display Stand Amortisation']];
 function ruleContact(r) {
   if (/JP Ajuha \(0010\)/i.test(r.desc)) return r.code === '64150' ? 'JP Ahuja Council Insurance' : 'JP Ahuja Council Rate';
   const m = ALLOC_RULES.find(([re]) => re.test(r.desc)); return m ? m[1] : null;
